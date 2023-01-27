@@ -8,7 +8,7 @@ void handleNotFound();
 String htmlPage();
 void startConfigWebpage();
 
-const char* SSID = "StMarche";
+const char* SSID = "WiFiESP";
 const char* password = NULL;
 
 uint8_t builtinLed = 5;  
