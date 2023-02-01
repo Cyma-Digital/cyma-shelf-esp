@@ -1,14 +1,18 @@
 #include <Arduino.h>
+
 #include <WiFiClient.h>
 #include <WebServer.h>
 #include <WiFi.h>
+
+#include <SPIFFS.h>
+#include <FFat.h>
 
 void handleRoot();
 void handleNotFound();
 String htmlPage();
 void startConfigWebpage();
 
-const char* SSID = "WiFiESP";
+const char* SSID = "StMarche";
 const char* password = NULL;
 
 uint8_t builtinLed = 5;  
@@ -22,9 +26,14 @@ void setup() {
   Serial.begin(115200);
 
   Serial.println("\n[+] Creating Access Point...");
+  pinMode(builtinLed, OUTPUT);
+
+  if (!FFat.begin(true)){
+    Serial.println("Couldn't mount File System");
+  }
 
   
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(SSID, password);
 
   Serial.print("[+] AP Created with IP Gateway ");
@@ -54,8 +63,15 @@ void loop() {
 
 
 void handleRoot() {
+
   Serial.println("Hanlder Root");
-  server.send(200, "text/html", htmlPage());
+
+  SPIFFS.begin();
+  File file = SPIFFS.open("/index.html.gz", "r");
+  server.streamFile(file, "text/html");
+  // server.send(200, "text/html", htmlPage());
+  file.close();
+  SPIFFS.end();
 }
 
 void handleNotFound() {
