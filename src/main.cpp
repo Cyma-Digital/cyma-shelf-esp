@@ -20,9 +20,16 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 void handleNotFound();
 String htmlPage();
 void startConfigWebpage();
+void checkAndWriteToFile();
+String read(String filename);
+
 
 const char* SSID = "StMarche";
 const char* password = NULL;
+
+const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
+
+
 
 #define LED_PIN 22
 
@@ -30,7 +37,7 @@ WiFiClient client;
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
-#define NUM_LEDS  50 
+#define NUM_LEDS 50
 CRGB leds[NUM_LEDS];
 
 void setup() {
@@ -43,6 +50,8 @@ void setup() {
   if (!FFat.begin(true)){
     Serial.println("Couldn't mount File System");
   }
+
+
 
   Serial.println("\n[+] Creating Access Point...");
   WiFi.mode(WIFI_AP_STA);
@@ -60,14 +69,8 @@ void setup() {
   server.on("/", handleRoot);
   server.onNotFound(handleNotFound);
   server.begin();
-
-  // while (true)
-  // {
-  //   server.handleClient();
-  //   webSocket.loop();
-  // }
   
-
+  checkAndWriteToFile();
 }
 
 void loop() {
@@ -76,16 +79,11 @@ void loop() {
     webSocket.loop();
   
     FastLED.show();
-
-  // digitalWrite(builtinLed, HIGH);
-  // delay(500);
-  // digitalWrite(builtinLed, LOW);
-  // delay(500);
 }
 
 void handleRoot() {
 
-  Serial.println("Hanlder Root");
+  Serial.println("Handle Root");
 
   SPIFFS.begin();
   File file = SPIFFS.open("/index.html.gz", "r");
@@ -111,6 +109,29 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   {
     IPAddress ip = webSocket.remoteIP(num);
     USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+
+    // Send data to Front
+
+    size_t len;
+    DynamicJsonDocument data(1024);
+
+    String dataFile = read("/data.txt");
+
+    DeserializationError error = deserializeJson(data, dataFile);
+
+    // Check for any errors during deserialization
+    if (error) {
+      Serial.print("Deserialization error: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    len = measureJson(data);
+    char jsonToSend[len];
+    serializeJson(data, Serial);
+    serializeJson(data, jsonToSend, len + 1);
+    webSocket.sendTXT(num, jsonToSend, strlen(jsonToSend));
+
   }
   break;
   case WStype_TEXT:
@@ -156,3 +177,71 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
+
+void checkAndWriteToFile(){
+ 
+ String fileContent;
+ File file = FFat.open("/data.txt", "w");
+ if (!file){
+    Serial.println("There was an error opening the file for writing");
+    return;
+  }
+
+
+  Serial.println("[!] Blank file");
+
+  if(file.print(jsonString)){
+      Serial.println("[+] Default data written");
+      file.close();
+
+      File fileData = FFat.open("/data.txt", "r");
+      int len = fileData.size();
+
+      char buffer[len];
+
+      if(!fileData){
+        Serial.println("[ERROR] Failed to open file for reading");
+        return;
+
+      }
+ 
+      while(fileData.available()){
+        // fileData.readBytes(buffer, len);
+        fileContent += (char)fileData.read();
+      }
+
+      // for (int i = 0; i < len; i++){
+      //   Serial.print(buffer[i]);
+      // }
+      Serial.println("[+] File Content:");
+      Serial.println(fileContent);
+  
+      fileData.close();
+
+  } else {
+      Serial.println("[+] Default data write failed");
+  }
+
+  
+
+}
+
+
+String read(String filename) {
+  String fileContent;
+
+  File file = FFat.open(filename, "r");
+
+  if(!file){
+    Serial.println("[ERROR] Failed to open file for reading");
+    return "None";
+  }
+
+  while(file.available()){
+    fileContent += (char)file.read();
+  }
+  file.close();
+
+  return fileContent;
+
+}
