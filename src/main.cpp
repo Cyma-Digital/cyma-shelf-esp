@@ -23,15 +23,20 @@ void startConfigWebpage();
 void checkAndWriteToFile();
 String read(String filename);
 void write(const ArduinoJson6200_F1::JsonVariantConst& json);
+void setLEDStripProperties();
+CRGB parseColorString(String colorString);
 
 
 const char* SSID = "StMarche";
 const char* password = NULL;
 const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
 
+#define LED_PIN_1 2
+#define LED_PIN_2 4
+#define LED_PIN_3 12
+#define LED_PIN_4 14
+#define LED_PIN_5 15
 
-
-#define LED_PIN 22
 
 WiFiClient client;
 WebServer server(80);
@@ -39,13 +44,30 @@ WebSocketsServer webSocket = WebSocketsServer(9090);
 
 #define NUM_LEDS 50
 CRGB leds[NUM_LEDS];
+CRGB leds1[NUM_LEDS];
+CRGB leds2[NUM_LEDS];
+CRGB leds3[NUM_LEDS];
+CRGB leds4[NUM_LEDS];
+CRGB leds5[NUM_LEDS];
 
 void setup() {
   Serial.begin(115200);
 
   pinMode(5, OUTPUT);
   
-  FastLED.addLeds<WS2811, LED_PIN, RGB>(leds, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_1, RBG>(leds1, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_2, RBG>(leds2, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_3, RBG>(leds3, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_4, RBG>(leds4, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_5, RBG>(leds5, 0, NUM_LEDS); //define
+
+  // fill_solid(leds1, NUM_LEDS, CRGB::Red);
+  // fill_solid(leds2, NUM_LEDS, CRGB::Red);
+  // fill_solid(leds3, NUM_LEDS, CRGB::Red);
+  // fill_solid(leds4, NUM_LEDS, CRGB::Red);
+  // fill_solid(leds5, NUM_LEDS, CRGB::Red);
+
+
 
   if (!FFat.begin(true)){
     Serial.println("Couldn't mount File System");
@@ -71,14 +93,17 @@ void setup() {
   server.begin();
   
   checkAndWriteToFile();
+  setLEDStripProperties();
 }
 
 void loop() {
 
     server.handleClient();
+    
     webSocket.loop();
   
     FastLED.show();
+    
 }
 
 void handleRoot() {
@@ -128,7 +153,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 
     len = measureJson(data);
     char jsonToSend[len];
-    // serializeJson(data, Serial);
     serializeJson(data, jsonToSend, len + 1);
     webSocket.sendTXT(num, jsonToSend, strlen(jsonToSend));
 
@@ -151,26 +175,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     // serializeJson(json, Serial);
 
     write(json);
-
-    // int segments = json["segmentsNumber"].as<int>();
-
-    // USE_SERIAL.printf("segments: %d\n", segments);
-    // USE_SERIAL.printf("segment count: %d\n", json["segments"].size());
-
-    // int iIndex = 0;
-
-    // for (int i=0; i<json["segments"].size(); i++){
-
-    //   CRGB segColor = CRGB(json["segments"][i]["color"][0], json["segments"][i]["color"][1], json["segments"][i]["color"][2]);
-    //   int segmentSize = i == json["segments"].size() - 1 ? 50 : json["segments"][i]["size"];
-
-    //   for (int p=iIndex; p<segmentSize; p++){
-    //     leds[p] = segColor;
-    //   }
-      
-    //   iIndex = segmentSize;
-
-    // }
+    setLEDStripProperties();
+    
 
 
   }
@@ -280,6 +286,109 @@ String read(String filename) {
   return fileContent;
 
 }
+
+/**
+ * The function parses a color string in hexadecimal format and returns a CRGB object with the
+ * corresponding RGB values.
+ * 
+ * @param colorString A string representing a color in hexadecimal format, starting with the '#'
+ * character. For example, "#FF0000" represents the color red.
+ * 
+ * @return a CRGB object, which represents a color in the RGB color space.
+ */
+CRGB parseColorString(String colorString) {
+  colorString.remove(0, 1);  // Remove the '#' character
+
+  // Extract individual color components
+  int r = strtol(colorString.substring(0, 2).c_str(), NULL, 16);
+  int g = strtol(colorString.substring(2, 4).c_str(), NULL, 16);
+  int b = strtol(colorString.substring(4, 6).c_str(), NULL, 16);
+
+  return CRGB(r, g, b);
+}
+
+
+/**
+ * This function reads data from a file, parses it as JSON, and sets properties for an LED strip based
+ * on the data.
+ * 
+ * @return It is not clear what is being returned as the function does not have a return statement.
+ */
+void setLEDStripProperties(){
+
+  DynamicJsonDocument json(2048);
+
+  String dataFile = read("/data.txt");
+
+  DeserializationError error = deserializeJson(json, dataFile);
+
+
+
+  if (error) {
+    Serial.print("Deserialization error: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  const JsonArray& shelfs = json["shelfs"].as<JsonArray>();
+
+  int amountOfShelfs = json["config"]["shelfs"].as<int>();
+  int pixels = json["config"]["pixels"].as<int>();
+
+  Serial.println("\n[*] APPLYING...");
+
+  Serial.print("[*] Amount of shelfs: ");
+  Serial.println(amountOfShelfs);
+
+  Serial.print("[*] Pixels: ");
+  Serial.println(pixels);
+  
+  Serial.println("\n[*] Shelfs:");
+
+  for (const auto& shelf : shelfs){
+
+    int shelfIndex = shelf["shelfIndex"].as<int>();
+    int segmentsNumber = shelf["segmentsNumber"].as<int>();
+
+    USE_SERIAL.print("[*] Shelf: ");
+    USE_SERIAL.print(shelfIndex + 1);
+    USE_SERIAL.print(" [*] Segments: ");
+    USE_SERIAL.println(segmentsNumber);
+
+    int iIndex = 0;
+
+    for (int i = 0; i < segmentsNumber; i++){
+
+      String segmentColor = shelf["segments"][i]["color"].as<String>();
+
+      USE_SERIAL.print(" [*] Color: ");
+      USE_SERIAL.print(segmentColor);
+
+      // int segmentSize = i == shelf["segments"].size() - 1 ? pixels - shelf["segments"][i - 1]["size"].as<int>() : json["segments"][i]["size"];
+      int segmentSize = shelf["segments"][i]["size"].as<int>();
+
+      if (i == segmentsNumber - 1) segmentSize = 10;
+
+      USE_SERIAL.print(" [*] Segment size: ");
+      USE_SERIAL.println(segmentSize);
+
+      for(int p = iIndex; p < segmentSize; p++){ // fix this loop
+        
+        USE_SERIAL.print(" [*] p: ");
+        USE_SERIAL.print(p);
+
+        leds1[p] = parseColorString(segmentColor);
+      }
+
+       iIndex = segmentSize;
+    }
+
+    return; 
+
+  }
+
+}
+
 
 
 /**
