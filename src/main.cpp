@@ -36,44 +36,42 @@ const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\
 #define LED_PIN_3 12
 #define LED_PIN_4 14
 #define LED_PIN_5 15
-
+#define LED_PIN_6 26
+#define LED_PIN_7 25
+#define LED_PIN_8 18
 
 WiFiClient client;
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
 #define NUM_LEDS 50
-CRGB leds[NUM_LEDS];
 CRGB leds1[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
 CRGB leds3[NUM_LEDS];
 CRGB leds4[NUM_LEDS];
 CRGB leds5[NUM_LEDS];
+CRGB leds6[NUM_LEDS];
+CRGB leds7[NUM_LEDS];
+CRGB leds8[NUM_LEDS];
 
 void setup() {
   Serial.begin(115200);
 
   pinMode(5, OUTPUT);
   
-  FastLED.addLeds<WS2811, LED_PIN_1, RBG>(leds1, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_2, RBG>(leds2, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_3, RBG>(leds3, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_4, RBG>(leds4, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_5, RBG>(leds5, 0, NUM_LEDS); //define
-
-  // fill_solid(leds1, NUM_LEDS, CRGB::Red);
-  // fill_solid(leds2, NUM_LEDS, CRGB::Red);
-  // fill_solid(leds3, NUM_LEDS, CRGB::Red);
-  // fill_solid(leds4, NUM_LEDS, CRGB::Red);
-  // fill_solid(leds5, NUM_LEDS, CRGB::Red);
-
+  FastLED.addLeds<WS2811, LED_PIN_1, GRB>(leds1, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_2, GRB>(leds2, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_3, GRB>(leds3, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_4, GRB>(leds4, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_5, GRB>(leds5, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_6, GRB>(leds6, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_7, GRB>(leds7, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2811, LED_PIN_8, GRB>(leds8, 0, NUM_LEDS); //define
 
 
   if (!FFat.begin(true)){
     Serial.println("Couldn't mount File System");
   }
-
-
 
   Serial.println("\n[+] Creating Access Point...");
   WiFi.mode(WIFI_AP_STA);
@@ -138,7 +136,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     // Send data to Front
 
     size_t len;
-    DynamicJsonDocument data(2048);
+    DynamicJsonDocument data(3048);
 
     String dataFile = read("/data.txt");
 
@@ -163,7 +161,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     USE_SERIAL.printf("[%u] From Vue: %s\n", num, payload);
 
     const uint8_t size = JSON_OBJECT_SIZE(5);
-    StaticJsonDocument<2048> json;
+    StaticJsonDocument<3048> json;
     DeserializationError err = deserializeJson(json, payload);
 
     if (err) {
@@ -308,15 +306,17 @@ CRGB parseColorString(String colorString) {
 }
 
 
+
 /**
- * This function reads data from a file, parses it as JSON, and sets properties for an LED strip based
- * on the data.
+ * This function reads LED strip properties from a JSON file and applies them to the corresponding LED
+ * strips.
  * 
- * @return It is not clear what is being returned as the function does not have a return statement.
+ * @return The function does not have a return type specified, so it does not explicitly return
+ * anything.
  */
 void setLEDStripProperties(){
 
-  DynamicJsonDocument json(2048);
+  DynamicJsonDocument json(3048);
 
   String dataFile = read("/data.txt");
 
@@ -357,6 +357,11 @@ void setLEDStripProperties(){
 
     int iIndex = 0;
 
+    USE_SERIAL.println(shelf["segments"][1]["size"].as<int>());
+    USE_SERIAL.println(shelf["segments"][0]["size"].as<int>());
+    USE_SERIAL.println(shelf["segments"][2]["size"].as<int>());
+
+
     for (int i = 0; i < segmentsNumber; i++){
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
@@ -373,17 +378,51 @@ void setLEDStripProperties(){
       USE_SERIAL.println(segmentSize);
 
       for(int p = iIndex; p < segmentSize; p++){ // fix this loop
-        
-        USE_SERIAL.print(" [*] p: ");
-        USE_SERIAL.print(p);
 
-        leds1[p] = parseColorString(segmentColor);
+        
+        switch (shelfIndex + 1)
+        {
+        case 1:
+          leds1[p] = parseColorString(segmentColor);
+          break;
+        
+
+        case 2:
+          leds2[p] = parseColorString(segmentColor);
+          break;
+        
+        case 3:
+          leds3[p] = parseColorString(segmentColor);
+          break;
+        
+        case 4:
+          leds4[p] = parseColorString(segmentColor);
+          break;
+        
+        case 5:
+          leds5[p] = parseColorString(segmentColor);
+          break;
+        
+        case 6:
+          leds6[p] = parseColorString(segmentColor);
+          break;
+
+        case 8:
+          leds7[p] = parseColorString(segmentColor);
+          break;
+        
+        case 7:
+          leds8[p] = parseColorString(segmentColor);
+          break;
+
+        default:
+          break;
+        }
       }
 
        iIndex = segmentSize;
     }
 
-    return; 
 
   }
 
