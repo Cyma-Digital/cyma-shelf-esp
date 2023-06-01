@@ -22,8 +22,9 @@ String htmlPage();
 void startConfigWebpage();
 void checkAndWriteToFile();
 String read(String filename);
-void write(const ArduinoJson6200_F1::JsonVariantConst& json);
+void write(const ArduinoJson::JsonVariantConst& json);
 void setLEDStripProperties();
+void clearLEDStripToApplyConfig(int shelfid);
 CRGB parseColorString(String colorString);
 
 
@@ -44,7 +45,7 @@ WiFiClient client;
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
-#define NUM_LEDS 50
+#define NUM_LEDS 100
 CRGB leds1[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
 CRGB leds3[NUM_LEDS];
@@ -59,14 +60,14 @@ void setup() {
 
   pinMode(5, OUTPUT);
   
-  FastLED.addLeds<WS2811, LED_PIN_1, GRB>(leds1, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_2, GRB>(leds2, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_3, GRB>(leds3, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_4, GRB>(leds4, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_5, GRB>(leds5, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_6, GRB>(leds6, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_7, GRB>(leds7, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2811, LED_PIN_8, GRB>(leds8, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds1, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds2, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds3, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds4, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_5, RGB>(leds5, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_6, RGB>(leds6, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_7, RGB>(leds7, 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_8, RGB>(leds8, 0, NUM_LEDS); //define
 
 
   if (!FFat.begin(true)){
@@ -91,6 +92,7 @@ void setup() {
   server.begin();
   
   checkAndWriteToFile();
+  
   setLEDStripProperties();
 }
 
@@ -173,6 +175,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     // serializeJson(json, Serial);
 
     write(json);
+    delay(1000);
     setLEDStripProperties();
     
 
@@ -269,7 +272,7 @@ String read(String filename) {
   String fileContent;
 
   SPIFFS.begin();
-  File file = FFat.open(filename, "r");
+  File file = SPIFFS.open(filename);
 
   if(!file){
     Serial.println("[ERROR] Failed to open file for reading");
@@ -319,6 +322,8 @@ void setLEDStripProperties(){
   DynamicJsonDocument json(3048);
 
   String dataFile = read("/data.txt");
+  USE_SERIAL.println("[.] Setting LED Strip Properties");
+  USE_SERIAL.println(dataFile);
 
   DeserializationError error = deserializeJson(json, dataFile);
 
@@ -348,6 +353,8 @@ void setLEDStripProperties(){
   for (const auto& shelf : shelfs){
 
     int shelfIndex = shelf["shelfIndex"].as<int>();
+    clearLEDStripToApplyConfig(shelfIndex);
+
     int segmentsNumber = shelf["segmentsNumber"].as<int>();
 
     USE_SERIAL.print("[*] Shelf: ");
@@ -356,10 +363,6 @@ void setLEDStripProperties(){
     USE_SERIAL.println(segmentsNumber);
 
     int iIndex = 0;
-
-    USE_SERIAL.println(shelf["segments"][1]["size"].as<int>());
-    USE_SERIAL.println(shelf["segments"][0]["size"].as<int>());
-    USE_SERIAL.println(shelf["segments"][2]["size"].as<int>());
 
 
     for (int i = 0; i < segmentsNumber; i++){
@@ -370,16 +373,26 @@ void setLEDStripProperties(){
       USE_SERIAL.print(segmentColor);
 
       // int segmentSize = i == shelf["segments"].size() - 1 ? pixels - shelf["segments"][i - 1]["size"].as<int>() : json["segments"][i]["size"];
-      int segmentSize = shelf["segments"][i]["size"].as<int>();
+      // int segmentSize = shelf["segments"][i]["size"].as<int>();
+      int segmentSize;
 
-      if (i == segmentsNumber - 1) segmentSize = 10;
+      // if segment number is 1, then segment size is equal to pixels value , else , to ...
+
+      if (i == segmentsNumber - 1 && segmentsNumber > 1 ){
+        // segmentSize = pixels - shelf["segments"][i - 1]["size"].as<int>(); // FIX last segment size
+        segmentSize = pixels;
+      } else {
+        segmentSize = shelf["segments"][i]["size"].as<int>();
+      }
 
       USE_SERIAL.print(" [*] Segment size: ");
       USE_SERIAL.println(segmentSize);
 
       for(int p = iIndex; p < segmentSize; p++){ // fix this loop
 
-        
+        USE_SERIAL.print(" [*] p: ");
+        USE_SERIAL.print(p);
+
         switch (shelfIndex + 1)
         {
         case 1:
@@ -420,8 +433,17 @@ void setLEDStripProperties(){
         }
       }
 
+
        iIndex = segmentSize;
+
+       USE_SERIAL.print(" [*] Segment size: ");
+       USE_SERIAL.println(segmentSize);
+
+       USE_SERIAL.print(" [*] iIndex:  ");
+      USE_SERIAL.println(iIndex);
+
     }
+
 
 
   }
@@ -440,14 +462,14 @@ void setLEDStripProperties(){
  * anything. However, it contains several return statements that will exit the function early if
  * certain conditions are met.
  */
-void write(const ArduinoJson6200_F1::JsonVariantConst& json){
+void write(const ArduinoJson::JsonVariantConst& json){
   Serial.println("\n[*] Saving");
   serializeJson(json, Serial);
 
 
   Serial.println("\n[*] Opening File");
 
-  File file = FFat.open("/data.txt", "w");
+  File file = SPIFFS.open("/data.txt", "w");
 
   if(!file){
     Serial.println("[ERROR] There was an error opening the file for writing");
@@ -455,7 +477,7 @@ void write(const ArduinoJson6200_F1::JsonVariantConst& json){
   }
   file.close();
 
-  file = FFat.open("/data.txt", "w");
+  file = SPIFFS.open("/data.txt", "w");
 
   if (!file) {
     Serial.println("There was an error reopening the file for writing");
@@ -470,5 +492,48 @@ void write(const ArduinoJson6200_F1::JsonVariantConst& json){
 
   Serial.println("\n[+] File updated successfully");
   file.close();
+
+}
+
+
+/**
+ * This function clears the LED strip of a specific shelf to apply a new configuration.
+ * 
+ * @param shelfid The shelf ID is an integer value that represents the specific shelf for which the LED
+ * strip needs to be cleared. The function uses a switch statement to determine which LED strip to
+ * clear based on the shelf ID provided.
+ */
+ void clearLEDStripToApplyConfig(int shelfid){
+
+    switch (shelfid)
+    {
+    case 0:
+      fill_solid(leds1, NUM_LEDS, CRGB::Black);
+    break;
+    case 1:
+      fill_solid(leds2, NUM_LEDS, CRGB::Black);
+    break;
+    case 2:
+      fill_solid(leds3, NUM_LEDS, CRGB::Black);
+    break;
+    case 3:
+      fill_solid(leds4, NUM_LEDS, CRGB::Black);
+    break;
+    case 4:
+      fill_solid(leds5, NUM_LEDS, CRGB::Black);
+    break;
+    case 5:
+      fill_solid(leds6, NUM_LEDS, CRGB::Black);
+    break;
+    case 6:
+      fill_solid(leds7, NUM_LEDS, CRGB::Black);
+    break;
+    case 7:
+      fill_solid(leds8, NUM_LEDS, CRGB::Black);
+    break;
+
+    default:
+      break;
+    }
 
 }
