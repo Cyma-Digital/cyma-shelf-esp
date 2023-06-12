@@ -16,6 +16,7 @@
 FASTLED_USING_NAMESPACE
 
 void handleRoot();
+void handleCategory();
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
 String htmlPage();
@@ -40,6 +41,12 @@ const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\
 #define LED_PIN_6 26
 #define LED_PIN_7 25
 #define LED_PIN_8 18
+
+
+#define GONDOLA_ID 5
+
+// #define CONNECTION_MODE "WiFi"
+#define CONNECTION_MODE "noWiFi"
 
 WiFiClient client;
 WebServer server(80);
@@ -74,12 +81,20 @@ void setup() {
     Serial.println("Couldn't mount File System");
   }
 
-  Serial.println("\n[+] Creating Access Point...");
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(SSID, password);
 
-  Serial.print("[+] AP Created with IP Gateway ");
-  Serial.println(WiFi.softAPIP());
+  if(CONNECTION_MODE == "WiFi"){
+    Serial.println("\n[+] Creating Access Point...");
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(SSID, password);
+
+    Serial.print("[+] AP Created with IP Gateway ");
+    Serial.println(WiFi.softAPIP());
+  } else {
+    Serial.println("\n[+] Connecting on WiFi network...");
+    WiFi.begin("DisplayHNK-Net", "cyma102030");
+  }
+
+
 
 
   Serial.println("[+] Creating websocket server... ");
@@ -88,6 +103,7 @@ void setup() {
 
 
   server.on("/", handleRoot);
+  server.on("/category", handleCategory);
   server.onNotFound(handleNotFound);
   server.begin();
   
@@ -115,6 +131,41 @@ void handleRoot() {
   server.streamFile(file, "text/html");
   file.close();
   SPIFFS.end();
+}
+
+void handleCategory(){
+  Serial.println("\nHandler Category");
+
+  
+  if(server.hasArg("plain") == false){
+    return;
+  }
+
+  
+  DynamicJsonDocument json(2048);
+  String body = server.arg("plain");
+  String response;
+  DeserializationError err = deserializeJson(json, body);
+  if (err) {
+    Serial.println("Error");
+    return;
+  }
+
+
+  serializeJson(json, Serial);
+  
+
+  int gondolaID = json["gondolaID"].as<int>();
+
+  if(gondolaID != GONDOLA_ID){
+    response = "{\"gondola\":\"not selected\"}";
+  } else {
+    response = "{\"gondola\":\"show category\"}";
+  }
+
+
+  server.send(200, "application/json", response);
+
 }
 
 void handleNotFound() {
