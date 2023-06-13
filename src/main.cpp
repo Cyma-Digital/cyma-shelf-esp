@@ -17,6 +17,7 @@ FASTLED_USING_NAMESPACE
 
 void handleRoot();
 void handleCategory();
+bool checkTerminalColor(String colorFromTerminal);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
 String htmlPage();
@@ -41,9 +42,6 @@ const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\
 #define LED_PIN_6 26
 #define LED_PIN_7 25
 #define LED_PIN_8 18
-
-
-#define GONDOLA_ID 5
 
 // #define CONNECTION_MODE "WiFi"
 #define CONNECTION_MODE "noWiFi"
@@ -155,18 +153,52 @@ void handleCategory(){
   serializeJson(json, Serial);
   
 
-  int gondolaID = json["gondolaID"].as<int>();
+  String colorFromTerminal = json["color"].as<String>();
 
-  if(gondolaID != GONDOLA_ID){
-    response = "{\"gondola\":\"not selected\"}";
-  } else {
+  // TODO: Go through the segments and check if they are in the color of the category
+
+  if(checkTerminalColor(colorFromTerminal)){
     response = "{\"gondola\":\"show category\"}";
+  } else {
+    response = "{\"gondola\":\"not selected\"}";
   }
+
 
 
   server.send(200, "application/json", response);
 
 }
+
+
+bool checkTerminalColor(String colorFromTerminal){
+  
+  String dataFile = read("/data.txt");
+
+  DynamicJsonDocument json(2048);
+  DeserializationError err = deserializeJson(json, dataFile);
+  if (err) {
+    Serial.println("Error");
+    return false;
+  }
+
+  
+  JsonArray colors = json["config"]["colors"].as<JsonArray>();
+
+
+  for (size_t i = 0; i < colors.size(); i++){
+    JsonObject color = colors[i].as<JsonObject>();
+
+    String colorValue = color["value"].as<String>();
+
+    if(colorValue == colorFromTerminal) {
+      USE_SERIAL.println("Color finded");
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 void handleNotFound() {
   Serial.println("Handle not Found");
