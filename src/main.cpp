@@ -28,6 +28,9 @@ void write(const ArduinoJson::JsonVariantConst& json);
 void setLEDStripProperties();
 void clearLEDStripToApplyConfig(int shelfid);
 CRGB parseColorString(String colorString);
+DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
+void dumpJsonArray(const JsonArray& jsonArray);
+
 
 
 const char* SSID = "StMarche";
@@ -143,20 +146,36 @@ void handleCategory(){
   DynamicJsonDocument json(2048);
   String body = server.arg("plain");
   String response;
-  DeserializationError err = deserializeJson(json, body);
-  if (err) {
+  DeserializationError error = deserializeJson(json, body);
+  if (error) {
     Serial.println("Error");
     return;
   }
 
 
   serializeJson(json, Serial);
+  USE_SERIAL.println();
   
 
   String colorFromTerminal = json["color"].as<String>();
 
   // TODO: Go through the segments and check if they are in the color of the category
 
+ 
+
+
+  DynamicJsonDocument jsonFile = readFileAndConvertoArduinoJson("/data.txt");
+
+  JsonArray shelfsArray = jsonFile["shelfs"].as<JsonArray>();
+  dumpJsonArray(shelfsArray);
+
+  
+  for (JsonVariant shelf : shelfsArray) {
+    JsonArray shelfsSegments = shelf["segments"].as<JsonArray>();
+    dumpJsonArray(shelfsSegments);
+  }
+
+  
   if(checkTerminalColor(colorFromTerminal)){
     response = "{\"gondola\":\"show category\"}";
   } else {
@@ -392,6 +411,45 @@ CRGB parseColorString(String colorString) {
 }
 
 
+/**
+ * This function reads a file and converts its contents into an Arduino JSON object.
+ * 
+ * @param filename a string variable that represents the name of the file to be read and converted to
+ * Arduino JSON.
+ * 
+ * @return The function `readFileAndConvertoArduinoJson` returns a `DynamicJsonDocument` object that
+ * contains the data read from the file specified by the `filename` parameter, after it has been
+ * deserialized from JSON format using the `deserializeJson` function. If there is an error during
+ * deserialization, the function returns an empty `DynamicJsonDocument` object.
+ */
+DynamicJsonDocument readFileAndConvertoArduinoJson(String filename){
+  String dataFile = read(filename);
+
+  DynamicJsonDocument json(2048);
+  DeserializationError err = deserializeJson(json, dataFile);
+  if (err) {
+    Serial.println("Error");
+    return DynamicJsonDocument(0);
+  }
+
+  return json;
+
+}
+
+/**
+ * The function dumps a JSON array by iterating through its elements and serializing each element's
+ * JSON object.
+ * 
+ * @param jsonArray A reference to a JSON array object that contains JSON objects as its elements.
+ */
+void dumpJsonArray(const JsonArray& jsonArray){
+  for (size_t i = 0; i < jsonArray.size(); i++){
+    JsonObject jsonObject = jsonArray[i].as<JsonObject>();
+       serializeJson(jsonObject, Serial);
+       USE_SERIAL.println();
+  }
+}
+
 
 /**
  * This function reads LED strip properties from a JSON file and applies them to the corresponding LED
@@ -473,8 +531,8 @@ void setLEDStripProperties(){
 
       for(int p = iIndex; p < segmentSize; p++){ // fix this loop
 
-        USE_SERIAL.print(" [*] p: ");
-        USE_SERIAL.print(p);
+        // USE_SERIAL.print(" [*] p: ");
+        // USE_SERIAL.print(p);
 
         switch (shelfIndex + 1)
         {
@@ -519,11 +577,11 @@ void setLEDStripProperties(){
 
        iIndex = segmentSize;
 
-       USE_SERIAL.print(" [*] Segment size: ");
-       USE_SERIAL.println(segmentSize);
+      // USE_SERIAL.print(" [*] Segment size: ");
+      // USE_SERIAL.println(segmentSize);
 
-       USE_SERIAL.print(" [*] iIndex:  ");
-      USE_SERIAL.println(iIndex);
+      // USE_SERIAL.print(" [*] iIndex:  ");
+      // USE_SERIAL.println(iIndex);
 
     }
 
