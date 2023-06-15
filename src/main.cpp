@@ -17,6 +17,8 @@ FASTLED_USING_NAMESPACE
 
 void handleRoot();
 void handleCategory();
+void handleColor();
+bool compareColor(CRGB led, CRGB pColor);
 bool checkTerminalColor(String colorFromTerminal);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
@@ -53,7 +55,7 @@ WiFiClient client;
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
-#define NUM_LEDS 100
+#define NUM_LEDS 50
 CRGB leds1[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
 CRGB leds3[NUM_LEDS];
@@ -77,6 +79,20 @@ void setup() {
   FastLED.addLeds<WS2812, LED_PIN_7, RGB>(leds7, 0, NUM_LEDS); //define
   FastLED.addLeds<WS2812, LED_PIN_8, RGB>(leds8, 0, NUM_LEDS); //define
 
+
+  fill_solid(leds1, NUM_LEDS, CRGB::Black);
+  fill_solid(leds2, NUM_LEDS, CRGB::Black);
+  fill_solid(leds3, NUM_LEDS, CRGB::Black);
+  fill_solid(leds4, NUM_LEDS, CRGB::Black);
+  fill_solid(leds5, NUM_LEDS, CRGB::Black);
+  fill_solid(leds6, NUM_LEDS, CRGB::Black);
+  fill_solid(leds7, NUM_LEDS, CRGB::Black);
+  fill_solid(leds8, NUM_LEDS, CRGB::Black);
+
+
+
+
+  FastLED.setBrightness(255);
 
   if (!FFat.begin(true)){
     Serial.println("Couldn't mount File System");
@@ -104,7 +120,7 @@ void setup() {
 
 
   server.on("/", handleRoot);
-  server.on("/category", handleCategory);
+  server.on("/category", handleColor);
   server.onNotFound(handleNotFound);
   server.begin();
   
@@ -134,6 +150,101 @@ void handleRoot() {
   SPIFFS.end();
 }
 
+
+void handleColor() {
+    Serial.println("\nHandler Category");
+
+  
+  if(server.hasArg("plain") == false){
+    return;
+  }
+
+  
+  DynamicJsonDocument json(2048);
+  String body = server.arg("plain");
+  String response;
+  DeserializationError error = deserializeJson(json, body);
+  if (error) {
+    Serial.println("Error");
+    return;
+  }
+
+
+  serializeJson(json, Serial);
+  USE_SERIAL.println();
+  
+
+  String colorFromTerminal = json["color"].as<String>();
+
+  CRGB pColor = parseColorString(colorFromTerminal);
+
+  for (int i= 0; i<25; i++){
+    for (int j=0; j<NUM_LEDS; j++){
+
+      
+      if (compareColor(leds1[j], pColor)){
+        leds1[j].fadeToBlackBy( 40 );
+      }
+      // if (leds2[j] != pColor){
+      //   leds2[j].fadeToBlackBy( 3 );
+      // }
+      // if (leds3[j] != pColor){
+      //   leds3[j].fadeToBlackBy( 3 );
+      // }
+      // if (leds4[j] != pColor){
+      //   leds4[j].fadeToBlackBy( 3 );
+      // }
+      // if (leds5[j] != pColor){
+      //   leds5[j].fadeToBlackBy( 3 );
+      // }
+      // if (leds6[j] != pColor){
+      //   leds6[j].fadeToBlackBy( 3 );
+      // }
+      // if (leds7[j] != pColor){
+      //   leds7[j].fadeToBlackBy( 3 );
+      // }
+      // if (leds8[j] != pColor){
+      //   leds8[j].fadeToBlackBy( 3 );
+      // }
+
+    }
+    FastLED.show();
+    delay(10);
+  }
+  response = "{\"message\":\"sucess\"}";
+
+  delay(5000);
+  setLEDStripProperties();
+  server.send(200, "application/json", response);
+
+}
+
+bool compareColor(CRGB led, CRGB pColor){
+    // USE_SERIAL.print("led: (");
+    // USE_SERIAL.print(led.r);
+    // USE_SERIAL.print(", ");
+    // USE_SERIAL.print(led.g);
+    // USE_SERIAL.print(", ");
+    // USE_SERIAL.print(led.b);
+    // USE_SERIAL.println(")");
+
+    // USE_SERIAL.print("pColor: (");
+    // USE_SERIAL.print(pColor.r);
+    // USE_SERIAL.print(", ");
+    // USE_SERIAL.print(pColor.g);
+    // USE_SERIAL.print(", ");
+    // USE_SERIAL.print(pColor.b);
+    // USE_SERIAL.println(")");
+    
+    // USE_SERIAL.println("");
+
+    if(led.r != pColor.r || led.g != pColor.g || led.b != pColor.b) {
+      return true;
+    }
+      
+    return false;
+}
+
 void handleCategory(){
   Serial.println("\nHandler Category");
 
@@ -159,7 +270,7 @@ void handleCategory(){
 
   String colorFromTerminal = json["color"].as<String>();
 
-  // TODO: Go through the segments and check if they are in the color of the category
+  
 
  
 
