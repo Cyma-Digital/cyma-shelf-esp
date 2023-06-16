@@ -16,14 +16,11 @@
 FASTLED_USING_NAMESPACE
 
 void handleRoot();
-void handleCategory();
 void handleColor();
 bool compareColor(CRGB led, CRGB pColor);
 bool checkTerminalColor(String colorFromTerminal);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
-String htmlPage();
-void startConfigWebpage();
 void checkAndWriteToFile();
 String read(String filename);
 void write(const ArduinoJson::JsonVariantConst& json);
@@ -48,6 +45,7 @@ const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\
 #define LED_PIN_7 25
 #define LED_PIN_8 18
 
+
 // #define CONNECTION_MODE "WiFi"
 #define CONNECTION_MODE "noWiFi"
 
@@ -56,6 +54,8 @@ WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
 #define NUM_LEDS 50
+#define AMOUNT_SHELFS 8
+
 CRGB leds1[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
 CRGB leds3[NUM_LEDS];
@@ -65,29 +65,34 @@ CRGB leds6[NUM_LEDS];
 CRGB leds7[NUM_LEDS];
 CRGB leds8[NUM_LEDS];
 
+CRGB* leds[AMOUNT_SHELFS] = { leds1, leds2, leds3, leds4, leds5, leds6, leds7, leds8 };
+
+
 void setup() {
   Serial.begin(115200);
 
   pinMode(5, OUTPUT);
-  
-  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds1, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds2, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds3, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds4, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_5, RGB>(leds5, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_6, RGB>(leds6, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_7, RGB>(leds7, 0, NUM_LEDS); //define
-  FastLED.addLeds<WS2812, LED_PIN_8, RGB>(leds8, 0, NUM_LEDS); //define
 
 
-  fill_solid(leds1, NUM_LEDS, CRGB::Black);
-  fill_solid(leds2, NUM_LEDS, CRGB::Black);
-  fill_solid(leds3, NUM_LEDS, CRGB::Black);
-  fill_solid(leds4, NUM_LEDS, CRGB::Black);
-  fill_solid(leds5, NUM_LEDS, CRGB::Black);
-  fill_solid(leds6, NUM_LEDS, CRGB::Black);
-  fill_solid(leds7, NUM_LEDS, CRGB::Black);
-  fill_solid(leds8, NUM_LEDS, CRGB::Black);
+
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_5, RGB>(leds[4], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_6, RGB>(leds[5], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_7, RGB>(leds[6], 0, NUM_LEDS); //define
+  FastLED.addLeds<WS2812, LED_PIN_8, RGB>(leds[7], 0, NUM_LEDS); //define
+
+
+  fill_solid(leds[0], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[1], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[2], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[3], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[4], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[5], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[6], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[7], NUM_LEDS, CRGB::Black);
 
 
 
@@ -178,35 +183,14 @@ void handleColor() {
 
   CRGB pColor = parseColorString(colorFromTerminal);
 
-  for (int i= 0; i<25; i++){
+  for (int i= 0; i<100; i++){
     for (int j=0; j<NUM_LEDS; j++){
 
-      
-      if (compareColor(leds1[j], pColor)){
-        leds1[j].fadeToBlackBy( 40 );
+      for (int k = 0; k < AMOUNT_SHELFS; k++){
+        if(compareColor(leds[k][j], pColor)){
+          leds[k][j].fadeToBlackBy(40);
+        }
       }
-      // if (leds2[j] != pColor){
-      //   leds2[j].fadeToBlackBy( 3 );
-      // }
-      // if (leds3[j] != pColor){
-      //   leds3[j].fadeToBlackBy( 3 );
-      // }
-      // if (leds4[j] != pColor){
-      //   leds4[j].fadeToBlackBy( 3 );
-      // }
-      // if (leds5[j] != pColor){
-      //   leds5[j].fadeToBlackBy( 3 );
-      // }
-      // if (leds6[j] != pColor){
-      //   leds6[j].fadeToBlackBy( 3 );
-      // }
-      // if (leds7[j] != pColor){
-      //   leds7[j].fadeToBlackBy( 3 );
-      // }
-      // if (leds8[j] != pColor){
-      //   leds8[j].fadeToBlackBy( 3 );
-      // }
-
     }
     FastLED.show();
     delay(10);
@@ -220,24 +204,6 @@ void handleColor() {
 }
 
 bool compareColor(CRGB led, CRGB pColor){
-    // USE_SERIAL.print("led: (");
-    // USE_SERIAL.print(led.r);
-    // USE_SERIAL.print(", ");
-    // USE_SERIAL.print(led.g);
-    // USE_SERIAL.print(", ");
-    // USE_SERIAL.print(led.b);
-    // USE_SERIAL.println(")");
-
-    // USE_SERIAL.print("pColor: (");
-    // USE_SERIAL.print(pColor.r);
-    // USE_SERIAL.print(", ");
-    // USE_SERIAL.print(pColor.g);
-    // USE_SERIAL.print(", ");
-    // USE_SERIAL.print(pColor.b);
-    // USE_SERIAL.println(")");
-    
-    // USE_SERIAL.println("");
-
     if(led.r != pColor.r || led.g != pColor.g || led.b != pColor.b) {
       return true;
     }
@@ -245,59 +211,6 @@ bool compareColor(CRGB led, CRGB pColor){
     return false;
 }
 
-void handleCategory(){
-  Serial.println("\nHandler Category");
-
-  
-  if(server.hasArg("plain") == false){
-    return;
-  }
-
-  
-  DynamicJsonDocument json(2048);
-  String body = server.arg("plain");
-  String response;
-  DeserializationError error = deserializeJson(json, body);
-  if (error) {
-    Serial.println("Error");
-    return;
-  }
-
-
-  serializeJson(json, Serial);
-  USE_SERIAL.println();
-  
-
-  String colorFromTerminal = json["color"].as<String>();
-
-  
-
- 
-
-
-  DynamicJsonDocument jsonFile = readFileAndConvertoArduinoJson("/data.txt");
-
-  JsonArray shelfsArray = jsonFile["shelfs"].as<JsonArray>();
-  dumpJsonArray(shelfsArray);
-
-  
-  for (JsonVariant shelf : shelfsArray) {
-    JsonArray shelfsSegments = shelf["segments"].as<JsonArray>();
-    dumpJsonArray(shelfsSegments);
-  }
-
-  
-  if(checkTerminalColor(colorFromTerminal)){
-    response = "{\"gondola\":\"show category\"}";
-  } else {
-    response = "{\"gondola\":\"not selected\"}";
-  }
-
-
-
-  server.send(200, "application/json", response);
-
-}
 
 
 bool checkTerminalColor(String colorFromTerminal){
@@ -645,45 +558,49 @@ void setLEDStripProperties(){
         // USE_SERIAL.print(" [*] p: ");
         // USE_SERIAL.print(p);
 
-        switch (shelfIndex + 1)
-        {
-        case 1:
-          leds1[p] = parseColorString(segmentColor);
-          break;
-        
-
-        case 2:
-          leds2[p] = parseColorString(segmentColor);
-          break;
-        
-        case 3:
-          leds3[p] = parseColorString(segmentColor);
-          break;
-        
-        case 4:
-          leds4[p] = parseColorString(segmentColor);
-          break;
-        
-        case 5:
-          leds5[p] = parseColorString(segmentColor);
-          break;
-        
-        case 6:
-          leds6[p] = parseColorString(segmentColor);
-          break;
-
-        case 8:
-          leds7[p] = parseColorString(segmentColor);
-          break;
-        
-        case 7:
-          leds8[p] = parseColorString(segmentColor);
-          break;
-
-        default:
-          break;
+        for (int j = 0; j < AMOUNT_SHELFS; j++) {
+          leds[shelfIndex][p] = parseColorString(segmentColor);
         }
-      }
+
+      //   switch (shelfIndex + 1)
+      //   {
+      //   case 1:
+      //     leds[0][p] = parseColorString(segmentColor);
+      //     break;
+        
+
+      //   case 2:
+      //     leds[1][p] = parseColorString(segmentColor);
+      //     break;
+        
+      //   case 3:
+      //     leds3[p] = parseColorString(segmentColor);
+      //     break;
+        
+      //   case 4:
+      //     leds4[p] = parseColorString(segmentColor);
+      //     break;
+        
+      //   case 5:
+      //     leds5[p] = parseColorString(segmentColor);
+      //     break;
+        
+      //   case 6:
+      //     leds6[p] = parseColorString(segmentColor);
+      //     break;
+
+      //   case 8:
+      //     leds7[p] = parseColorString(segmentColor);
+      //     break;
+        
+      //   case 7:
+      //     leds8[p] = parseColorString(segmentColor);
+      //     break;
+
+      //   default:
+      //     break;
+      //   }
+      // }
 
 
        iIndex = segmentSize;
@@ -700,6 +617,7 @@ void setLEDStripProperties(){
 
   }
 
+}
 }
 
 

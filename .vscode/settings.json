@@ -1,4 +1,7 @@
 {
     "docwriter.progress.trackFunctions": true,
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+        "new": "cpp"
+    }
 }
