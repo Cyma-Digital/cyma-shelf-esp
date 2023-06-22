@@ -15,10 +15,13 @@
 
 FASTLED_USING_NAMESPACE
 
+void stateMachine();
 void handleRoot();
+void changeColorCategory();
+void applyColorCategory();
+void waitColor();
 void handleColor();
-bool compareColor(CRGB led, CRGB pColor);
-bool checkTerminalColor(String colorFromTerminal);
+bool compareColor(CRGB led, CRGB categoryColor);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
 void checkAndWriteToFile();
@@ -30,6 +33,15 @@ CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
 void dumpJsonArray(const JsonArray& jsonArray);
 
+const int DEFAULT_STATE = 1;
+const int POST_REQUEST_STATE = 12;
+const int SET_COLOR_STATE = 2;
+const int BACK_DEFAULT_STATE = 21;
+int currentState;
+CRGB categoryColor;
+
+const int delayCategoryColor = 10000;
+int lastColor = 0;
 
 
 const char* SSID = "StMarche";
@@ -44,6 +56,8 @@ const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\
 #define LED_PIN_6 26
 #define LED_PIN_7 25
 #define LED_PIN_8 18
+
+
 
 
 // #define CONNECTION_MODE "WiFi"
@@ -130,8 +144,11 @@ void setup() {
   server.begin();
   
   checkAndWriteToFile();
-  
-  setLEDStripProperties();
+
+  currentState = BACK_DEFAULT_STATE;
+  USE_SERIAL.print("Current State: ");
+  USE_SERIAL.println(currentState);
+  // setLEDStripProperties();
 }
 
 void loop() {
@@ -140,8 +157,44 @@ void loop() {
     
     webSocket.loop();
   
+    stateMachine();
+
     FastLED.show();
+
     
+}
+
+
+void stateMachine(){
+  switch (currentState)
+  {
+  case 1:
+    break;
+  case 12:
+    applyColorCategory();
+    lastColor = millis();
+    currentState = 2;
+    break;
+  case 2:
+    waitColor();
+  case 21:
+    setLEDStripProperties();
+    currentState = DEFAULT_STATE;
+    break;
+  
+  default:
+    break;
+  }
+
+}
+
+void waitColor(){
+
+  if (lastColor + delayCategoryColor < millis()){
+      currentState = BACK_DEFAULT_STATE;
+      USE_SERIAL.print("Current State: ");
+      USE_SERIAL.println(currentState);
+    }
 }
 
 void handleRoot() {
@@ -156,8 +209,42 @@ void handleRoot() {
 }
 
 
+void changeColorCategory(){
+  lastColor = millis();
+  currentState = SET_COLOR_STATE;
+  USE_SERIAL.print("Current State: ");
+  USE_SERIAL.println(currentState);
+  applyColorCategory();
+}
+
+void applyColorCategory(){
+
+  for (int i= 0; i<100; i++){ 
+    for (int j=0; j<NUM_LEDS; j++){
+
+      for (int k = 0; k < AMOUNT_SHELFS; k++){
+        if(compareColor(leds[k][j], categoryColor)){
+          // USE_SERIAL.print("black");
+          leds[k][j].fadeToBlackBy(40);
+        } 
+        
+      }
+    }
+    FastLED.show();
+    
+    
+  }
+  USE_SERIAL.print("Current State: ");
+  USE_SERIAL.println(currentState);
+  return;
+}
+
+
+
 void handleColor() {
-    Serial.println("\nHandler Category");
+  Serial.println("\nHandler Category");
+  USE_SERIAL.print("Current State: ");
+  USE_SERIAL.println(currentState);
 
   
   if(server.hasArg("plain") == false){
@@ -178,70 +265,44 @@ void handleColor() {
   serializeJson(json, Serial);
   USE_SERIAL.println();
   
-
   String colorFromTerminal = json["color"].as<String>();
+  categoryColor = parseColorString(colorFromTerminal);
 
-  CRGB pColor = parseColorString(colorFromTerminal);
 
-  for (int i= 0; i<100; i++){
-    for (int j=0; j<NUM_LEDS; j++){
+  currentState = POST_REQUEST_STATE;
 
-      for (int k = 0; k < AMOUNT_SHELFS; k++){
-        if(compareColor(leds[k][j], pColor)){
-          leds[k][j].fadeToBlackBy(40);
-        }
-      }
-    }
-    FastLED.show();
-    delay(10);
-  }
-  response = "{\"message\":\"sucess\"}";
-
-  delay(5000);
-  setLEDStripProperties();
+  response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
 
+
+  // for (int i= 0; i<100; i++){
+  //   for (int j=0; j<NUM_LEDS; j++){
+
+  //     for (int k = 0; k < AMOUNT_SHELFS; k++){
+  //       if(compareColor(leds[k][j], categoryColor)){
+  //         leds[k][j].fadeToBlackBy(40);
+  //       }
+  //     }
+  //   }
+  //   FastLED.show();
+  //   delay(10);
+  // }
+
+  // delay(5000);
+  // setLEDStripProperties();
+
 }
 
-bool compareColor(CRGB led, CRGB pColor){
-    if(led.r != pColor.r || led.g != pColor.g || led.b != pColor.b) {
-      return true;
-    }
-      
-    return false;
-}
+bool compareColor(CRGB led, CRGB categoryColor){
 
-
-
-bool checkTerminalColor(String colorFromTerminal){
-  
-  String dataFile = read("/data.txt");
-
-  DynamicJsonDocument json(2048);
-  DeserializationError err = deserializeJson(json, dataFile);
-  if (err) {
-    Serial.println("Error");
-    return false;
+  // USE_SERIAL.println(String("FadeLightBy") + " (" + String(led.r) + "," + String(led.g) + "," + String(led.b) + ")");
+  if(led.r != categoryColor.r || led.g != categoryColor.g || led.b != categoryColor.b) {
+    return true;
   }
-
   
-  JsonArray colors = json["config"]["colors"].as<JsonArray>();
-
-
-  for (size_t i = 0; i < colors.size(); i++){
-    JsonObject color = colors[i].as<JsonObject>();
-
-    String colorValue = color["value"].as<String>();
-
-    if(colorValue == colorFromTerminal) {
-      USE_SERIAL.println("Color finded");
-      return true;
-    }
-  }
-
   return false;
+    
 }
-
 
 void handleNotFound() {
   Serial.println("Handle not Found");
@@ -298,7 +359,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
         return;
     }
 
-    // serializeJson(json, Serial);
 
     write(json);
     delay(1000);
@@ -356,13 +416,9 @@ void checkAndWriteToFile(){
         }
   
         while(fileData.available()){
-          // fileData.readBytes(buffer, len);
           fileContent += (char)fileData.read();
         }
 
-        // for (int i = 0; i < len; i++){
-        //   Serial.print(buffer[i]);
-        // }
         Serial.println("\n[+] File Content:");
         Serial.println(fileContent);
         Serial.println();
@@ -487,8 +543,8 @@ void setLEDStripProperties(){
   DynamicJsonDocument json(3048);
 
   String dataFile = read("/data.txt");
-  USE_SERIAL.println("[.] Setting LED Strip Properties");
-  USE_SERIAL.println(dataFile);
+  // USE_SERIAL.println("[.] Setting LED Strip Properties");
+  // USE_SERIAL.println(dataFile);
 
   DeserializationError error = deserializeJson(json, dataFile);
 
@@ -505,15 +561,15 @@ void setLEDStripProperties(){
   int amountOfShelfs = json["config"]["shelfs"].as<int>();
   int pixels = json["config"]["pixels"].as<int>();
 
-  Serial.println("\n[*] APPLYING...");
+  // Serial.println("\n[*] APPLYING...");
 
-  Serial.print("[*] Amount of shelfs: ");
-  Serial.println(amountOfShelfs);
+  // Serial.print("[*] Amount of shelfs: ");
+  // Serial.println(amountOfShelfs);
 
-  Serial.print("[*] Pixels: ");
-  Serial.println(pixels);
+  // Serial.print("[*] Pixels: ");
+  // Serial.println(pixels);
   
-  Serial.println("\n[*] Shelfs:");
+  // Serial.println("\n[*] Shelfs:");
 
   for (const auto& shelf : shelfs){
 
@@ -522,10 +578,10 @@ void setLEDStripProperties(){
 
     int segmentsNumber = shelf["segmentsNumber"].as<int>();
 
-    USE_SERIAL.print("[*] Shelf: ");
-    USE_SERIAL.print(shelfIndex + 1);
-    USE_SERIAL.print(" [*] Segments: ");
-    USE_SERIAL.println(segmentsNumber);
+    // USE_SERIAL.print("[*] Shelf: ");
+    // USE_SERIAL.print(shelfIndex + 1);
+    // USE_SERIAL.print(" [*] Segments: ");
+    // USE_SERIAL.println(segmentsNumber);
 
     int iIndex = 0;
 
@@ -534,11 +590,9 @@ void setLEDStripProperties(){
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
 
-      USE_SERIAL.print(" [*] Color: ");
-      USE_SERIAL.print(segmentColor);
+      // USE_SERIAL.print(" [*] Color: ");
+      // USE_SERIAL.print(segmentColor);
 
-      // int segmentSize = i == shelf["segments"].size() - 1 ? pixels - shelf["segments"][i - 1]["size"].as<int>() : json["segments"][i]["size"];
-      // int segmentSize = shelf["segments"][i]["size"].as<int>();
       int segmentSize;
 
       // if segment number is 1, then segment size is equal to pixels value , else , to ...
@@ -550,66 +604,18 @@ void setLEDStripProperties(){
         segmentSize = shelf["segments"][i]["size"].as<int>();
       }
 
-      USE_SERIAL.print(" [*] Segment size: ");
-      USE_SERIAL.println(segmentSize);
+      // USE_SERIAL.print(" [*] Segment size: ");
+      // USE_SERIAL.println(segmentSize);
 
-      for(int p = iIndex; p < segmentSize; p++){ // fix this loop
+      for(int p = iIndex; p < segmentSize; p++){
 
-        // USE_SERIAL.print(" [*] p: ");
-        // USE_SERIAL.print(p);
 
         for (int j = 0; j < AMOUNT_SHELFS; j++) {
           leds[shelfIndex][p] = parseColorString(segmentColor);
         }
 
-      //   switch (shelfIndex + 1)
-      //   {
-      //   case 1:
-      //     leds[0][p] = parseColorString(segmentColor);
-      //     break;
-        
-
-      //   case 2:
-      //     leds[1][p] = parseColorString(segmentColor);
-      //     break;
-        
-      //   case 3:
-      //     leds3[p] = parseColorString(segmentColor);
-      //     break;
-        
-      //   case 4:
-      //     leds4[p] = parseColorString(segmentColor);
-      //     break;
-        
-      //   case 5:
-      //     leds5[p] = parseColorString(segmentColor);
-      //     break;
-        
-      //   case 6:
-      //     leds6[p] = parseColorString(segmentColor);
-      //     break;
-
-      //   case 8:
-      //     leds7[p] = parseColorString(segmentColor);
-      //     break;
-        
-      //   case 7:
-      //     leds8[p] = parseColorString(segmentColor);
-      //     break;
-
-      //   default:
-      //     break;
-      //   }
-      // }
-
 
        iIndex = segmentSize;
-
-      // USE_SERIAL.print(" [*] Segment size: ");
-      // USE_SERIAL.println(segmentSize);
-
-      // USE_SERIAL.print(" [*] iIndex:  ");
-      // USE_SERIAL.println(iIndex);
 
     }
 
@@ -674,36 +680,5 @@ void write(const ArduinoJson::JsonVariantConst& json){
  * clear based on the shelf ID provided.
  */
  void clearLEDStripToApplyConfig(int shelfid){
-
-    switch (shelfid)
-    {
-    case 0:
-      fill_solid(leds1, NUM_LEDS, CRGB::Black);
-    break;
-    case 1:
-      fill_solid(leds2, NUM_LEDS, CRGB::Black);
-    break;
-    case 2:
-      fill_solid(leds3, NUM_LEDS, CRGB::Black);
-    break;
-    case 3:
-      fill_solid(leds4, NUM_LEDS, CRGB::Black);
-    break;
-    case 4:
-      fill_solid(leds5, NUM_LEDS, CRGB::Black);
-    break;
-    case 5:
-      fill_solid(leds6, NUM_LEDS, CRGB::Black);
-    break;
-    case 6:
-      fill_solid(leds7, NUM_LEDS, CRGB::Black);
-    break;
-    case 7:
-      fill_solid(leds8, NUM_LEDS, CRGB::Black);
-    break;
-
-    default:
-      break;
-    }
-
+    fill_solid(leds[shelfid], NUM_LEDS, CRGB::Black);
 }
