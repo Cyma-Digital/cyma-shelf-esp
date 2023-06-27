@@ -40,7 +40,7 @@ const int BACK_DEFAULT_STATE = 21;
 int currentState;
 CRGB categoryColor;
 
-const int delayCategoryColor = 10000;
+const int delayCategoryColor = 4000;
 int lastColor = 0;
 
 
@@ -177,6 +177,7 @@ void stateMachine(){
     break;
   case 2:
     waitColor();
+    break;
   case 21:
     setLEDStripProperties();
     currentState = DEFAULT_STATE;
@@ -194,7 +195,7 @@ void waitColor(){
       currentState = BACK_DEFAULT_STATE;
       USE_SERIAL.print("Current State: ");
       USE_SERIAL.println(currentState);
-    }
+  }
 }
 
 void handleRoot() {
@@ -224,7 +225,6 @@ void applyColorCategory(){
 
       for (int k = 0; k < AMOUNT_SHELFS; k++){
         if(compareColor(leds[k][j], categoryColor)){
-          // USE_SERIAL.print("black");
           leds[k][j].fadeToBlackBy(40);
         } 
         
