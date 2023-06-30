@@ -125,23 +125,36 @@ void setup() {
 
     Serial.print("[+] AP Created with IP Gateway ");
     Serial.println(WiFi.softAPIP());
+
   } else {
     Serial.println("\n[+] Connecting on WiFi network...");
     WiFi.begin("DisplayHNK-Net", "cyma102030");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      USE_SERIAL.print(".");
+      delay(10);
+    }
+
+    WiFi.mode(WIFI_STA);
+
+    Serial.println("\nConnected to the WiFi network");
+    Serial.print("Local ESP32 IP: ");
+    Serial.println(WiFi.localIP());
+    
   }
 
 
-
-
-  Serial.println("[+] Creating websocket server... ");
-  webSocket.begin();
-  webSocket.onEvent(webSocketEvent);
-
-
+  server.begin();
   server.on("/", handleRoot);
   server.on("/category", handleColor);
   server.onNotFound(handleNotFound);
-  server.begin();
+
+
+  Serial.println("[+] Creating websocket server... ");
+
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+
   
   checkAndWriteToFile();
 
