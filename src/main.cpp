@@ -18,6 +18,9 @@ FASTLED_USING_NAMESPACE
 void stateMachine();
 void handleRoot();
 void changeColorCategory();
+void fadeIn(const CRGB& shelf, int brightness);
+void fadeOut(const CRGB& shelf, int brightness);
+CRGB hsvToRgb(const CHSV& hsv, CRGB& rgb);
 void applyColorCategory();
 void waitColor();
 void handleColor();
@@ -79,15 +82,24 @@ CRGB leds6[NUM_LEDS];
 CRGB leds7[NUM_LEDS];
 CRGB leds8[NUM_LEDS];
 
+CRGB ref1[NUM_LEDS];
+CRGB ref2[NUM_LEDS];
+CRGB ref3[NUM_LEDS];
+CRGB ref4[NUM_LEDS];
+CRGB ref5[NUM_LEDS];
+CRGB ref6[NUM_LEDS];
+CRGB ref7[NUM_LEDS];
+CRGB ref8[NUM_LEDS];
+
+
 CRGB* leds[AMOUNT_SHELFS] = { leds1, leds2, leds3, leds4, leds5, leds6, leds7, leds8 };
+CRGB* refs[AMOUNT_SHELFS] = { ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8 };
 
 
 void setup() {
   Serial.begin(115200);
 
   pinMode(5, OUTPUT);
-
-
 
   FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); //define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); //define
@@ -97,7 +109,6 @@ void setup() {
   FastLED.addLeds<WS2812, LED_PIN_6, RGB>(leds[5], 0, NUM_LEDS); //define
   FastLED.addLeds<WS2812, LED_PIN_7, RGB>(leds[6], 0, NUM_LEDS); //define
   FastLED.addLeds<WS2812, LED_PIN_8, RGB>(leds[7], 0, NUM_LEDS); //define
-
 
   fill_solid(leds[0], NUM_LEDS, CRGB::Black);
   fill_solid(leds[1], NUM_LEDS, CRGB::Black);
@@ -132,7 +143,7 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
-      delay(10);
+      delay(100);
     }
 
     WiFi.mode(WIFI_STA);
@@ -222,7 +233,6 @@ void handleRoot() {
   SPIFFS.end();
 }
 
-
 void changeColorCategory(){
   lastColor = millis();
   currentState = SET_COLOR_STATE;
@@ -231,16 +241,36 @@ void changeColorCategory(){
   applyColorCategory();
 }
 
+
+void fadeOut(CRGB& shelf, int brightness){
+    shelf.maximizeBrightness(255 - brightness);
+}
+
+void fadeIn(CRGB& shelf, int brightness){
+  shelf.maximizeBrightness(0 + brightness);
+}
+
+
 void applyColorCategory(){
 
-  for (int i= 0; i<100; i++){ 
+  
+  for (int i= 0; i<=255; i+= 5){ 
     for (int j=0; j<NUM_LEDS; j++){
 
       for (int k = 0; k < AMOUNT_SHELFS; k++){
-        if(compareColor(leds[k][j], categoryColor)){
-          leds[k][j].fadeToBlackBy(40);
-        } 
-        
+        if(compareColor(refs[k][j], categoryColor)){
+          //cor diferente
+          //leds[k][j] --;
+          fadeOut(leds[k][j], i);
+        }
+        else{
+           //cor igual
+           leds[k][j].r += leds[k][j].r < refs[k][j].r ? 5 : 0;
+           leds[k][j].g += leds[k][j].g < refs[k][j].g ? 5 : 0;
+           leds[k][j].b += leds[k][j].b < refs[k][j].b ? 5 : 0;
+
+      
+        }
       }
     }
     FastLED.show();
@@ -286,23 +316,6 @@ void handleColor() {
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
-
-
-  // for (int i= 0; i<100; i++){
-  //   for (int j=0; j<NUM_LEDS; j++){
-
-  //     for (int k = 0; k < AMOUNT_SHELFS; k++){
-  //       if(compareColor(leds[k][j], categoryColor)){
-  //         leds[k][j].fadeToBlackBy(40);
-  //       }
-  //     }
-  //   }
-  //   FastLED.show();
-  //   delay(10);
-  // }
-
-  // delay(5000);
-  // setLEDStripProperties();
 
 }
 
@@ -374,7 +387,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 
 
     write(json);
-    delay(1000);
+    // delay(1000);
     setLEDStripProperties();
     
 
@@ -504,6 +517,7 @@ CRGB parseColorString(String colorString) {
 }
 
 
+
 /**
  * This function reads a file and converts its contents into an Arduino JSON object.
  * 
@@ -625,6 +639,9 @@ void setLEDStripProperties(){
 
         for (int j = 0; j < AMOUNT_SHELFS; j++) {
           leds[shelfIndex][p] = parseColorString(segmentColor);
+          refs[shelfIndex][p] = parseColorString(segmentColor);
+
+          
         }
 
 
