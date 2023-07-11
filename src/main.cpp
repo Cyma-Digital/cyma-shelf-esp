@@ -46,6 +46,18 @@ CRGB categoryColor;
 const int delayCategoryColor = 4000;
 int lastColor = 0;
 
+// esp@192.168.0.10
+IPAddress device_IP(192,168, 0, 10);
+
+// esp@192.168.0.20
+// IPAddress device_IP(192,168, 0, 20);
+
+// esp@192.168.0.30
+// IPAddress device_IP(192,168, 0, 30);
+
+IPAddress gateway(192, 168, 0, 1);
+IPAddress subnet(255, 225, 255, 0);
+
 
 const char* SSID = "StMarche";
 const char* password = NULL;
@@ -56,9 +68,9 @@ const char* jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"colors\":[{\
 #define LED_PIN_3 12
 #define LED_PIN_4 14
 #define LED_PIN_5 15
-#define LED_PIN_6 26
-#define LED_PIN_7 25
-#define LED_PIN_8 18
+#define LED_PIN_6 17
+#define LED_PIN_7 5
+#define LED_PIN_8 33
 
 
 
@@ -115,9 +127,9 @@ void setup() {
   fill_solid(leds[2], NUM_LEDS, CRGB::Black);
   fill_solid(leds[3], NUM_LEDS, CRGB::Black);
   fill_solid(leds[4], NUM_LEDS, CRGB::Black);
-  fill_solid(leds[5], NUM_LEDS, CRGB::Black);
-  fill_solid(leds[6], NUM_LEDS, CRGB::Black);
-  fill_solid(leds[7], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[5], NUM_LEDS, CRGB::Red);
+  fill_solid(leds[6], NUM_LEDS, CRGB::Red);
+  fill_solid(leds[7], NUM_LEDS, CRGB::Red);
 
 
 
@@ -128,6 +140,8 @@ void setup() {
     Serial.println("Couldn't mount File System");
   }
 
+
+  WiFi.config(device_IP, gateway, subnet);
 
   if(CONNECTION_MODE == "WiFi"){
     Serial.println("\n[+] Creating Access Point...");
@@ -351,7 +365,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     // Send data to Front
 
     size_t len;
-    DynamicJsonDocument data(3048);
+    DynamicJsonDocument data(4048);
 
     String dataFile = read("/data.txt");
 
@@ -567,7 +581,7 @@ void dumpJsonArray(const JsonArray& jsonArray){
  */
 void setLEDStripProperties(){
 
-  DynamicJsonDocument json(3048);
+  DynamicJsonDocument json(4048);
 
   String dataFile = read("/data.txt");
   // USE_SERIAL.println("[.] Setting LED Strip Properties");
