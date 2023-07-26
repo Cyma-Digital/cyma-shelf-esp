@@ -58,6 +58,9 @@ int lastColor = 0;
 // esp@192.168.0.40
 // IPAddress device_IP(192,168, 0, 40);
 
+// esp@192.168.0.50
+IPAddress device_IP(192,168, 0, 50);
+
 IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 225, 255, 0);
 
