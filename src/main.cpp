@@ -47,7 +47,7 @@ const int delayCategoryColor = 4000;
 int lastColor = 0;
 
 // esp@192.168.0.10
-// IPAddress device_IP(192,168, 0, 10);
+IPAddress device_IP(192,168, 0, 10);
 
 // esp@192.168.0.20
 // IPAddress device_IP(192,168, 0, 20);
