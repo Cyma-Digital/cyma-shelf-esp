@@ -43,7 +43,7 @@ const int BACK_DEFAULT_STATE = 21;
 int currentState;
 CRGB categoryColor;
 
-const int delayCategoryColor = 4000;
+const int delayCategoryColor = 10000;
 int lastColor = 0;
 
 // esp@192.168.0.10
