@@ -43,6 +43,9 @@ const int BACK_DEFAULT_STATE = 21;
 int currentState;
 CRGB categoryColor;
 
+const String orangeColor_LED = "#ff1e00";
+const String yellowColor_LED = "#ff4600";
+
 const int delayCategoryColor = 4000;
 int lastColor = 0;
 
@@ -640,6 +643,9 @@ void setLEDStripProperties(){
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
 
+      if(segmentColor == "#fd8e01") segmentColor = orangeColor_LED;
+
+       if(segmentColor == "#ffff00") segmentColor = yellowColor_LED;
       // USE_SERIAL.print(" [*] Color: ");
       // USE_SERIAL.print(segmentColor);
 
