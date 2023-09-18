@@ -50,8 +50,8 @@ CRGB categoryColor;
 const String orangeColor_LED = "#ff1e00";
 const String yellowColor_LED = "#ff4600";
 
-const int delayCategoryColor = 4000;
 const int delayCategoryColor = 10000;
+
 int lastColor = 0;
 
 // esp@192.168.0.10
@@ -161,7 +161,6 @@ void setup()
   }
 
   WiFi.config(device_IP, gateway, subnet);
-  delay(20000);
 
   if (CONNECTION_MODE == "Ethernet")
   {
