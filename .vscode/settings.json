@@ -2,6 +2,8 @@
     "docwriter.progress.trackFunctions": true,
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
-        "new": "cpp"
+        "*.ejs": "html",
+        "new": "cpp",
+        "*.tcc": "cpp"
     }
 }

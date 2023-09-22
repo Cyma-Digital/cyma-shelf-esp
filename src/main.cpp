@@ -47,11 +47,33 @@ const int BACK_DEFAULT_STATE = 21;
 int currentState;
 CRGB categoryColor;
 
-const String orangeColor_LED = "#ff1e00";
-const String yellowColor_LED = "#ff4600";
+const String responseRedColor = "#ef3e2e";
+const String responseYellowColor = "#fdda65";
+const String responsePurpleColor = "#6e3896";
+const String responseOrangeColor = "#f5833d";
+const String responseGreenColor = "#a1cd3a";
+const String responseBlueColor = "#47559e";
 
-const String orangeColor_LED_UPPER = "#FF1E00";
+const String redColor_LED = "#ff0000";
+const String yellowColor_LED = "#ff4600";
+const String purpleColor_LED = "#9932cc";
+const String orangeColor_LED = "#ff1a00";
+const String greenColor_LED = "#ddff00";
+const String blueColor_LED = "#0000ff";
+
+const String responseRedColor_UPPER = "#EF3E2E";
+const String responseYellowColor_UPPER = "#FDDA65";
+const String responsePurpleColor_UPPER = "#6E3896";
+const String responseOrangeColor_UPPER = "#F5833D";
+const String responseGreenColor_UPPER = "#A1CD3A";
+const String responseBlueColor_UPPER = "#47559E";
+
+const String redColor_LED_UPPER = "#FF0000";
 const String yellowColor_LED_UPPER = "#FF4600";
+const String purpleColor_LED_UPPER = "#9932CC";
+const String orangeColor_LED_UPPER = "#FF1A00";
+const String greenColor_LED_UPPER = "#DDFF00";
+const String blueColor_LED_UPPER = "#0000FF";
 
 int delayCategoryColor;
 
@@ -181,7 +203,7 @@ void setup()
   else
   {
     Serial.println("\n[+] Connecting on WiFi network...");
-    WiFi.begin("DisplayHNK-Net", "cyma102030");
+    WiFi.begin("CymaDigital", "cyma102030");
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
@@ -548,11 +570,34 @@ String read(String filename)
  */
 CRGB parseColorString(String colorString)
 {
-  if (colorString == "#FD8E01")
-    colorString = orangeColor_LED_UPPER;
 
-  if (colorString == "#FFFF00")
+  if (colorString == responseRedColor_UPPER)
+    colorString = redColor_LED_UPPER;
+  else if (colorString == responseYellowColor_UPPER)
     colorString = yellowColor_LED_UPPER;
+  else if (colorString == responsePurpleColor_UPPER)
+    colorString = purpleColor_LED_UPPER;
+  else if (colorString == responseOrangeColor_UPPER)
+    colorString = orangeColor_LED_UPPER;
+  else if (colorString == responseGreenColor_UPPER)
+    colorString = greenColor_LED_UPPER;
+  else if (colorString == responseBlueColor_UPPER)
+    colorString = blueColor_LED_UPPER;
+  else
+    Serial.println("Cor inválida");
+
+  // Map<String, String> colorMapping = new HashMap<>();
+  // colorMapping.put(responseRedColor_UPPER, redColor_LED_UPPER);
+  // colorMapping.put(responseYellowColor_UPPER, yellowColor_LED_UPPER);
+  // colorMapping.put(responsePurpleColor_UPPER, purpleColor_LED_UPPER);
+  // colorMapping.put(responsePinkColor_UPPER, pinkColor_LED_UPPER);
+  // colorMapping.put(responseGreenColor_UPPER, greenColor_LED_UPPER);
+  // colorMapping.put(responseBlueColor_UPPER, blueColor_LED_UPPER);
+
+  // if (colorMapping.containsKey(colorString))
+  // {
+  //   colorString = colorMapping.get(colorString);
+  // }
 
   colorString.remove(0, 1); // Remove the '#' character
 
@@ -669,11 +714,33 @@ void setLEDStripProperties()
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
 
-      if (segmentColor == "#fd8e01")
-        segmentColor = orangeColor_LED;
-
-      if (segmentColor == "#ffff00")
+      if (segmentColor == responseRedColor)
+        segmentColor = redColor_LED;
+      else if (segmentColor == responseYellowColor)
         segmentColor = yellowColor_LED;
+      else if (segmentColor == responsePurpleColor)
+        segmentColor = purpleColor_LED;
+      else if (segmentColor == responseOrangeColor)
+        segmentColor = orangeColor_LED;
+      else if (segmentColor == responseGreenColor)
+        segmentColor = greenColor_LED;
+      else if (segmentColor == responseBlueColor)
+        segmentColor = blueColor_LED;
+      else
+        Serial.println("Cor inválida");
+
+      // Map<String, String> colorMapping = new HashMap<>();
+      // colorMapping.put(responseRedColor, redColor_LED);
+      // colorMapping.put(responseYellowColor, yellowColor_LED);
+      // colorMapping.put(responsePurpleColor, purpleColor_LED);
+      // colorMapping.put(responsePinkColor, pinkColor_LED);
+      // colorMapping.put(responseGreenColor, greenColor_LED);
+      // colorMapping.put(responseBlueColor, blueColor_LED);
+
+      // if (colorMapping.containsKey(segmentColor))
+      // {
+      //   segmentColor = colorMapping.get(segmentColor);
+      // }
 
       int segmentSize;
 
