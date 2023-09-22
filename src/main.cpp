@@ -80,7 +80,7 @@ int delayCategoryColor;
 int lastColor = 0;
 
 // esp@192.168.0.10
-IPAddress device_IP(192, 168, 0, 10);
+// IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
 // IPAddress device_IP(192,168, 0, 20);
@@ -89,7 +89,7 @@ IPAddress device_IP(192, 168, 0, 10);
 // IPAddress device_IP(192, 168, 0, 30);
 
 // esp@192.168.0.40
-// IPAddress device_IP(192,168, 0, 40);
+IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
 // IPAddress device_IP(192,168, 0, 50);
