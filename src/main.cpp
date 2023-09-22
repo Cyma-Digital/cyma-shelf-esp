@@ -50,12 +50,15 @@ CRGB categoryColor;
 const String orangeColor_LED = "#ff1e00";
 const String yellowColor_LED = "#ff4600";
 
-const int delayCategoryColor = 10000;
+const String orangeColor_LED_UPPER = "#FF1E00";
+const String yellowColor_LED_UPPER = "#FF4600";
+
+int delayCategoryColor;
 
 int lastColor = 0;
 
 // esp@192.168.0.10
-IPAddress device_IP(192,168, 0, 10);
+IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
 // IPAddress device_IP(192,168, 0, 20);
@@ -79,7 +82,7 @@ static bool eth_connected = false;
 const char *SSID = "StMarche";
 const char *password = NULL;
 
-const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
+const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
 
 #define LED_PIN_1 2
 #define LED_PIN_2 4
@@ -545,6 +548,12 @@ String read(String filename)
  */
 CRGB parseColorString(String colorString)
 {
+  if (colorString == "#FD8E01")
+    colorString = orangeColor_LED_UPPER;
+
+  if (colorString == "#FFFF00")
+    colorString = yellowColor_LED_UPPER;
+
   colorString.remove(0, 1); // Remove the '#' character
 
   // Extract individual color components
@@ -610,8 +619,6 @@ void setLEDStripProperties()
   DynamicJsonDocument json(4048);
 
   String dataFile = read("/data.txt");
-  // USE_SERIAL.println("[.] Setting LED Strip Properties");
-  // USE_SERIAL.println(dataFile);
 
   DeserializationError error = deserializeJson(json, dataFile);
 
@@ -627,6 +634,9 @@ void setLEDStripProperties()
   int amountOfShelfs = json["config"]["shelfs"].as<int>();
   int pixels = json["config"]["pixels"].as<int>();
   int brightness = json["config"]["brightness"].as<int>();
+  int delayColor = json["config"]["delay"].as<int>();
+
+  delayCategoryColor = delayColor;
 
   FastLED.setBrightness(brightness);
   // Serial.println("\n[*] APPLYING...");
@@ -659,11 +669,11 @@ void setLEDStripProperties()
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
 
-      if(segmentColor == "#fd8e01") segmentColor = orangeColor_LED;
+      if (segmentColor == "#fd8e01")
+        segmentColor = orangeColor_LED;
 
-       if(segmentColor == "#ffff00") segmentColor = yellowColor_LED;
-      // USE_SERIAL.print(" [*] Color: ");
-      // USE_SERIAL.print(segmentColor);
+      if (segmentColor == "#ffff00")
+        segmentColor = yellowColor_LED;
 
       int segmentSize;
 
@@ -789,13 +799,12 @@ void initEthernet()
   }
 }
 
-
 /* LAN8720 */
 
 /**
  * The function WiFiEvent handles different events related to Ethernet connectivity and prints relevant
  * information to the Serial monitor.
- * 
+ *
  * @param event The parameter "event" is of type WiFiEvent_t, which is an enumeration type that
  * represents different events related to the WiFi connection. The switch statement is used to handle
  * different events and perform specific actions based on the event type.
@@ -850,13 +859,12 @@ void initEthernet()
 //   ETH.begin();
 // }
 
-
 /* TLK110 */
 
 /**
  * The WiFiEvent function handles different events related to the Ethernet connection, such as
  * starting, connecting, getting an IP address, disconnecting, and stopping.
- * 
+ *
  * @param event The parameter "event" is of type WiFiEvent_t, which is an enumeration type that
  * represents different events related to the WiFi connection. The switch statement is used to handle
  * different events and perform specific actions based on the event type.
