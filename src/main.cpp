@@ -82,10 +82,10 @@ int delayCategoryColor;
 int lastColor = 0;
 
 // esp@192.168.0.10
-// IPAddress device_IP(192, 168, 0, 10);
+IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
-IPAddress device_IP(192,168, 0, 20);
+// IPAddress device_IP(192,168, 0, 20);
 
 // esp@192.168.0.30
 // IPAddress device_IP(192, 168, 0, 30);
@@ -111,8 +111,8 @@ const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\"
 int *productsId = nullptr;
 size_t productsIdSize = 0;
 
-bool configModeActivate = true;
-unsigned long interactDelay = 300000;
+bool configModeActivate = false;
+unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
 #define LED_PIN_1 2
@@ -357,35 +357,54 @@ void applyColorCategory()
 void handleColor()
 {
 
-  Serial.println("\nHandler Category");
-  USE_SERIAL.print("Current State: ");
-  USE_SERIAL.println(currentState);
+    Serial.println("\nHandler Category");
+    USE_SERIAL.print("Current State: ");
+    USE_SERIAL.println(currentState);
+    String response;
 
-  if (server.hasArg("plain") == false)
-  {
-    return;
-  }
+    if(configModeActivate == true && tsconfig + interactDelay < millis()){
+      Serial.println("Config mode is false");
+      configModeActivate = false;
+      // currentState = 21;
+      response = "{\"message\":\"config mode false\"}";
+      server.send(200, "application/json", response);
+      return;
+    }
 
-  DynamicJsonDocument json(2048);
-  String body = server.arg("plain");
-  String response;
-  DeserializationError error = deserializeJson(json, body);
-  if (error)
-  {
-    Serial.println("Error");
-    return;
-  }
 
-  serializeJson(json, Serial);
-  USE_SERIAL.println();
+    if(configModeActivate == false){
 
-  String colorFromTerminal = json["color"].as<String>();
-  categoryColor = parseColorString(colorFromTerminal);
+      Serial.println("\nHandler Category");
 
-  currentState = POST_REQUEST_STATE;
+     if (server.hasArg("plain") == false)
+     {
+       return;
+     }
+  
+     DynamicJsonDocument json(2048);
+     String body = server.arg("plain");
+     DeserializationError error = deserializeJson(json, body);
+     if (error)
+     {
+       Serial.println("Error");
+       return;
+     }
+  
+     serializeJson(json, Serial);
+     USE_SERIAL.println();
+  
+     String colorFromTerminal = json["color"].as<String>();
+     categoryColor = parseColorString(colorFromTerminal);
+  
+     currentState = POST_REQUEST_STATE;
+  
+     response = "{\"message\":\"success\"}";
+     server.send(200, "application/json", response);
+  
+    }
 
-  response = "{\"message\":\"success\"}";
-  server.send(200, "application/json", response);
+    response = "{\"message\":\"config mode is true\"}";
+    server.send(200, "application/json", response);
 }
 
 void handleProducts(){
@@ -468,6 +487,8 @@ void handleConfigMode(){
   configModeActivate = tempJson["status"].as<boolean>();
   Serial.println(configModeActivate);
 
+  currentState = BACK_DEFAULT_STATE;
+  
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
   return;
@@ -680,6 +701,7 @@ String read(String filename)
 CRGB parseColorString(String colorString)
 {
 
+  Serial.println(colorString);
   if (colorString == responseRedColor_UPPER)
     colorString = redColor_LED_UPPER;
   else if (colorString == responseYellowColor_UPPER)
