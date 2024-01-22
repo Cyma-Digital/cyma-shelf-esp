@@ -27,6 +27,8 @@ void applyColorCategory();
 void waitColor();
 void handleColor();
 void handleProducts();
+void handleInteract();
+void handleConfigMode();
 bool compareColor(CRGB led, CRGB categoryColor);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
@@ -38,8 +40,7 @@ void clearLEDStripToApplyConfig(int shelfid);
 CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
 void dumpJsonArray(const JsonArray &jsonArray);
-void WiFiEvent(WiFiEvent_t event);
-void initEthernet();
+
 
 const int DEFAULT_STATE = 1;
 const int POST_REQUEST_STATE = 12;
@@ -107,9 +108,12 @@ const char *password = NULL;
 
 const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
 
-// int productsId[] = {};
 int *productsId = nullptr;
 size_t productsIdSize = 0;
+
+bool configModeActivate = true;
+unsigned long interactDelay = 300000;
+unsigned long tsconfig; // timestamp config
 
 #define LED_PIN_1 2
 #define LED_PIN_2 4
@@ -192,11 +196,7 @@ void setup()
 
   WiFi.config(device_IP, gateway, subnet);
 
-  if (CONNECTION_MODE == "Ethernet")
-  {
-    initEthernet();
-  }
-  else if (CONNECTION_MODE == "WiFi")
+  if (CONNECTION_MODE == "WiFi")
   {
     Serial.println("\n[+] Creating Access Point...");
     WiFi.mode(WIFI_AP_STA);
@@ -227,6 +227,8 @@ void setup()
   server.on("/", handleRoot);
   server.on("/category", handleColor);
   server.on("/products", handleProducts);
+  server.on("/config-mode", handleConfigMode);
+  server.on("/interact", handleInteract);
   server.onNotFound(handleNotFound);
 
   Serial.println("[+] Creating websocket server... ");
@@ -354,6 +356,7 @@ void applyColorCategory()
 
 void handleColor()
 {
+
   Serial.println("\nHandler Category");
   USE_SERIAL.print("Current State: ");
   USE_SERIAL.println(currentState);
@@ -436,6 +439,53 @@ void handleProducts(){
   
 }
 
+
+void handleConfigMode(){
+  Serial.println("Handle Configuration Mode");
+
+  String response;
+  String request_body;
+
+  DynamicJsonDocument tempJson(1024);
+
+  if(server.hasArg("plain") == false) {
+    response = "{\"message\":\"empty body\"}";
+    server.send(200, "application/json", response);
+    return;
+  }
+
+  request_body = server.arg("plain");
+
+  DeserializationError error = deserializeJson(tempJson, request_body);
+  if(error) {
+    Serial.println("Erro");
+    return;
+  }
+
+
+  serializeJson(tempJson, Serial);
+
+  configModeActivate = tempJson["status"].as<boolean>();
+  Serial.println(configModeActivate);
+
+  response = "{\"message\":\"success\"}";
+  server.send(200, "application/json", response);
+  return;
+
+}
+
+
+void handleInteract(){
+  Serial.println("Handle Interact");
+
+  tsconfig = millis();
+
+
+  String response;
+  response = "{\"message\":\""+ String(tsconfig)+"\"}";
+  server.send(200, "application/json", response);
+  return;
+}
 
 bool compareColor(CRGB led, CRGB categoryColor)
 {
@@ -897,155 +947,3 @@ void clearLEDStripToApplyConfig(int shelfid)
  * The function initializes the Ethernet shield, checks for hardware presence, and prints the status of
  * the Ethernet connection.
  */
-void initEthernet()
-{
-  Ethernet.init(ETHERNET_CS);
-
-  Serial.println("\n[+] Starting the Ethernet...");
-  Ethernet.begin(mac, device_IP);
-
-  // while (!Ethernet.linkStatus())
-  // {
-  //   Serial.print(".");
-  //   delay(100);
-  // }
-
-  Serial.println("\n[+] Checking for Ethernet hardware present...");
-  if (Ethernet.hardwareStatus() == EthernetNoHardware)
-  {
-    Serial.println("\n[+] Ethernet shield was not found.");
-  }
-  if (Ethernet.linkStatus() == LinkOFF)
-  {
-    Serial.println("\n[+] Ethernet cable is not connected.");
-  }
-  if (Ethernet.linkStatus() == LinkON)
-  {
-    Serial.println("\n[+] Ethernet cable is connected.");
-  }
-}
-
-/* LAN8720 */
-
-/**
- * The function WiFiEvent handles different events related to Ethernet connectivity and prints relevant
- * information to the Serial monitor.
- *
- * @param event The parameter "event" is of type WiFiEvent_t, which is an enumeration type that
- * represents different events related to the WiFi connection. The switch statement is used to handle
- * different events and perform specific actions based on the event type.
- */
-// void WiFiEvent(WiFiEvent_t event)
-// {
-//   switch (event)
-//   {
-//   case ARDUINO_EVENT_ETH_START:
-//     Serial.println("ETH Started");
-//     // set eth hostname here
-//     ETH.setHostname("esp32-ethernet");
-//     ETH.macAddress(mac);
-//     ETH.config(device_IP, gateway, subnet);
-//     break;
-//   case ARDUINO_EVENT_ETH_CONNECTED:
-//     Serial.println("ETH Connected");
-//     break;
-//   case ARDUINO_EVENT_ETH_GOT_IP:
-//     Serial.print("ETH MAC: ");
-//     Serial.print(ETH.macAddress());
-//     Serial.print(", IPv4: ");
-//     Serial.print(ETH.localIP());
-//     if (ETH.fullDuplex())
-//     {
-//       Serial.print(", FULL_DUPLEX");
-//     }
-//     Serial.print(", ");
-//     Serial.print(ETH.linkSpeed());
-//     Serial.println("Mbps");
-//     eth_connected = true;
-//     break;
-//   case ARDUINO_EVENT_ETH_DISCONNECTED:
-//     Serial.println("ETH Disconnected");
-//     eth_connected = false;
-//     break;
-//   case ARDUINO_EVENT_ETH_STOP:
-//     Serial.println("ETH Stopped");
-//     eth_connected = false;
-//     break;
-//   default:
-//     break;
-//   }
-// }
-
-/**
- * The function initializes the Ethernet connection and sets up an event handler for WiFi events.
- */
-// void initEthernet()
-// {
-//   WiFi.onEvent(WiFiEvent);
-//   ETH.begin();
-// }
-
-/* TLK110 */
-
-/**
- * The WiFiEvent function handles different events related to the Ethernet connection, such as
- * starting, connecting, getting an IP address, disconnecting, and stopping.
- *
- * @param event The parameter "event" is of type WiFiEvent_t, which is an enumeration type that
- * represents different events related to the WiFi connection. The switch statement is used to handle
- * different events and perform specific actions based on the event type.
- */
-// void WiFiEvent(WiFiEvent_t event)
-// {
-//   switch (event)
-//   {
-//   case ARDUINO_EVENT_ETH_START:
-//     Serial.println("ETH Started");
-//     // set eth hostname here
-//     ETH.setHostname("esp32-ethernet");
-//     // configure static ip
-//     ETH.config(device_IP, gateway, subnet);
-//     break;
-//   case ARDUINO_EVENT_ETH_CONNECTED:
-//     Serial.println("ETH Connected");
-//     break;
-//   case ARDUINO_EVENT_ETH_GOT_IP:
-//     Serial.print("ETH MAC: ");
-//     Serial.print(ETH.macAddress());
-//     Serial.print(", IPv4: ");
-//     Serial.print(ETH.localIP());
-//     if (ETH.fullDuplex())
-//     {
-//       Serial.print(", FULL_DUPLEX");
-//     }
-//     Serial.print(", ");
-//     Serial.print(ETH.linkSpeed());
-//     Serial.println("Mbps");
-//     eth_connected = true;
-//     break;
-//   case ARDUINO_EVENT_ETH_DISCONNECTED:
-//     Serial.println("ETH Disconnected");
-//     eth_connected = false;
-//     break;
-//   case ARDUINO_EVENT_ETH_STOP:
-//     Serial.println("ETH Stopped");
-//     eth_connected = false;
-//     break;
-//   default:
-//     break;
-//   }
-// }
-
-/**
- * The function initializes the Ethernet connection and waits until it is successfully connected.
- */
-// void initEthernet()
-// {
-//   WiFi.onEvent(WiFiEvent);
-//   ETH.begin(ETH_ADDR, ETH_PHY_POWER, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
-//   while (eth_connected == false)
-//   {
-//     Serial.print(".");
-//     delay(1000);
-//   }
-// }
