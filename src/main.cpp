@@ -26,6 +26,7 @@ CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
 void applyColorCategory();
 void waitColor();
 void handleColor();
+void handleProducts();
 bool compareColor(CRGB led, CRGB categoryColor);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
@@ -83,13 +84,13 @@ int lastColor = 0;
 // IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
-// IPAddress device_IP(192,168, 0, 20);
+IPAddress device_IP(192,168, 0, 20);
 
 // esp@192.168.0.30
 // IPAddress device_IP(192, 168, 0, 30);
 
 // esp@192.168.0.40
-IPAddress device_IP(192,168, 0, 40);
+// IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
 // IPAddress device_IP(192,168, 0, 50);
@@ -105,6 +106,10 @@ const char *SSID = "StMarche";
 const char *password = NULL;
 
 const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
+
+// int productsId[] = {};
+int *productsId = nullptr;
+size_t productsIdSize = 0;
 
 #define LED_PIN_1 2
 #define LED_PIN_2 4
@@ -180,10 +185,10 @@ void setup()
 
   FastLED.setBrightness(255);
 
-  if (!FFat.begin(true))
-  {
-    Serial.println("Couldn't mount File System");
-  }
+  // if (!FFat.begin(true))
+  // {
+  //   Serial.println("Couldn't mount File System");
+  // }
 
   WiFi.config(device_IP, gateway, subnet);
 
@@ -203,7 +208,8 @@ void setup()
   else
   {
     Serial.println("\n[+] Connecting on WiFi network...");
-    WiFi.begin("CymaDigital", "cyma102030");
+    // WiFi.begin("CymaDigital", "cyma102030");
+    WiFi.begin("DisplayHNK-Net", "cyma102030");
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
@@ -220,6 +226,7 @@ void setup()
   server.begin();
   server.on("/", handleRoot);
   server.on("/category", handleColor);
+  server.on("/products", handleProducts);
   server.onNotFound(handleNotFound);
 
   Serial.println("[+] Creating websocket server... ");
@@ -377,6 +384,58 @@ void handleColor()
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
 }
+
+void handleProducts(){
+
+  Serial.println("Handle Products");
+
+  String response;
+  String request_body;
+
+  DynamicJsonDocument tempJson(2048);
+
+
+  if(server.hasArg("plain") == false) {
+    response = "{\"message\":\"empty body\"}";
+    server.send(200, "application/json", response);
+    return;
+  }
+
+  request_body = server.arg("plain");
+  
+
+  DeserializationError error = deserializeJson(tempJson, request_body);
+  if(error) {
+    Serial.println("Erro");
+    return;
+  }
+
+  serializeJson(tempJson, Serial);
+  Serial.println();
+
+  if(tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>()) {
+    JsonArray produtosArray = tempJson["produtos"].as<JsonArray>();
+
+    productsId[produtosArray.size()];
+
+    for(size_t i = 0; i < produtosArray.size(); i++) {
+      Serial.println(produtosArray[i].as<int>());
+    }
+
+    // for(size_t i = 0; i < productsId.size(); i++){
+    //   Serial.println(productsId[i]);
+    // }
+  }
+  
+  
+
+  response = "{\"message\":\"success\"}";
+  server.send(200, "application/json", response);
+  return;
+
+  
+}
+
 
 bool compareColor(CRGB led, CRGB categoryColor)
 {
