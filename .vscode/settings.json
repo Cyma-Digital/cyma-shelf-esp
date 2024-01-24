@@ -4,6 +4,7 @@
     "files.associations": {
         "*.ejs": "html",
         "new": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "random": "cpp"
     }
 }
