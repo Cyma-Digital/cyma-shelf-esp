@@ -24,12 +24,16 @@ void fadeIn(const CRGB &shelf, int brightness);
 void fadeOut(const CRGB &shelf, int brightness);
 CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
 void applyColorCategory();
+void applyMidiaColor();
 void waitColor();
 void handleColor();
 void handleProducts();
 void handleInteract();
+void handleTests();
+JsonArray getProducts();
 void handleConfigMode();
 bool compareColor(CRGB led, CRGB categoryColor);
+bool compareProducts();
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
 void checkAndWriteToFile();
@@ -46,8 +50,10 @@ const int DEFAULT_STATE = 1;
 const int POST_REQUEST_STATE = 12;
 const int SET_COLOR_STATE = 2;
 const int BACK_DEFAULT_STATE = 21;
+const int POST_MIDIA_REQUEST_STATE = 3;
 int currentState;
 CRGB categoryColor;
+CRGB midiaColor;
 
 const String responseRedColor = "#ef3e2e";
 const String responseYellowColor = "#fdda65";
@@ -106,9 +112,11 @@ static bool eth_connected = false;
 const char *SSID = "StMarche";
 const char *password = NULL;
 
-const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
+// const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"colors\":[{\"name\":\"Branco\",\"value\":\"#ffffff\"},{\"name\":\"Desligado\",\"value\":\"#000000\"},{\"name\":\"Cinza\",\"value\":\"#808080\"},{\"name\":\"Vermelho\",\"value\":\"#ff0000\"},{\"name\":\"Verde\",\"value\":\"#00ff00\"},{\"name\":\"Azul\",\"value\":\"#0000ff\"},{\"name\":\"Amarelo\",\"value\":\"#ffff00\"},{\"name\":\"Laranja\",\"value\":\"#ffa500\"},{\"name\":\"Rosa\",\"value\":\"#ffc0cb\"},{\"name\":\"Roxo\",\"value\":\"#800080\"},{\"name\":\"Azul Claro\",\"value\":\"#0779bf\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":1,\"segments\":[]}]}";
+const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#000000\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#000000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#808080\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#ff0000\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#00ff00\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#0000ff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":2,\"segments\":[{\"segmentIndex\":0,\"size\":15,\"product\":1,\"color\":\"#ff0000\"},{\"segmentIndex\":1,\"product\":2,\"color\":\"#0000ff\"}]}]}";
+// int *productsColors = nullptr;
+String* productsColors = nullptr;
 
-int *productsId = nullptr;
 size_t productsIdSize = 0;
 
 bool configModeActivate = false;
@@ -229,7 +237,9 @@ void setup()
   server.on("/products", handleProducts);
   server.on("/config-mode", handleConfigMode);
   server.on("/interact", handleInteract);
+  server.on("/function-test", handleTests);
   server.onNotFound(handleNotFound);
+
 
   Serial.println("[+] Creating websocket server... ");
 
@@ -274,7 +284,10 @@ void stateMachine()
     setLEDStripProperties();
     currentState = DEFAULT_STATE;
     break;
-
+  case 3:
+    // applyMidiaColor();
+    lastColor = millis();
+    currentState = 2;
   default:
     break;
   }
@@ -354,6 +367,58 @@ void applyColorCategory()
   return;
 }
 
+// void applyProducts()
+// {
+
+//   for (int i = 0; i <= 255; i += 5)
+//   {
+//     for (int j = 0; j < NUM_LEDS; j++)
+//     {
+
+//       for (int k = 0; k < AMOUNT_SHELFS; k++)
+//       {
+//         if (compareColors(refs[k][j], categoriesColor))
+//         {
+//           // cor diferente
+//           // leds[k][j] --;
+//           fadeOut(leds[k][j], i);
+//         }
+//         else
+//         {
+//           // cor igual
+//           leds[k][j].r += leds[k][j].r < refs[k][j].r ? 5 : 0;
+//           leds[k][j].g += leds[k][j].g < refs[k][j].g ? 5 : 0;
+//           leds[k][j].b += leds[k][j].b < refs[k][j].b ? 5 : 0;
+//         }
+//       }
+//     }
+//     FastLED.show();
+//   }
+//   USE_SERIAL.print("Current State: ");
+//   USE_SERIAL.println(currentState);
+//   return;
+// }
+
+// void applyMidiaColor(){
+//     Serial.println("applyMidiaColor()");
+
+//     for (size_t i = 0; i <= 255; i++)
+//     {
+//       for(size_t j = 0; j < NUM_LEDS; j++) 
+//       {
+//         for (size_t k = 0; k < AMOUNT_SHELFS; k++) {
+//           if(compareColor(refs[k][j], midiaColor))
+//           {
+//             fadeOut(leds[k][j], i);
+//           } else {
+//             leds[k][j] = midiaColor;
+//           }
+//         }
+//       }
+//     }
+    
+// }
+
 void handleColor()
 {
 
@@ -365,7 +430,6 @@ void handleColor()
     if(configModeActivate == true && tsconfig + interactDelay < millis()){
       Serial.println("Config mode is false");
       configModeActivate = false;
-      // currentState = 21;
       response = "{\"message\":\"config mode false\"}";
       server.send(200, "application/json", response);
       return;
@@ -412,50 +476,146 @@ void handleProducts(){
   Serial.println("Handle Products");
 
   String response;
-  String request_body;
 
-  DynamicJsonDocument tempJson(2048);
-
-
-  if(server.hasArg("plain") == false) {
-    response = "{\"message\":\"empty body\"}";
+  if (configModeActivate == true && tsconfig + interactDelay < millis()) {
+    Serial.println("Config mode is false");
+    configModeActivate = false;
     server.send(200, "application/json", response);
     return;
   }
 
-  request_body = server.arg("plain");
-  
+  if(configModeActivate == false) {
 
-  DeserializationError error = deserializeJson(tempJson, request_body);
-  if(error) {
-    Serial.println("Erro");
-    return;
-  }
+    String request_body;
 
-  serializeJson(tempJson, Serial);
-  Serial.println();
+    DynamicJsonDocument tempJson(2048);
 
-  if(tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>()) {
-    JsonArray produtosArray = tempJson["produtos"].as<JsonArray>();
 
-    productsId[produtosArray.size()];
-
-    for(size_t i = 0; i < produtosArray.size(); i++) {
-      Serial.println(produtosArray[i].as<int>());
+    if(server.hasArg("plain") == false) {
+      response = "{\"message\":\"empty body\"}";
+      server.send(200, "application/json", response);
+      return;
     }
 
-    // for(size_t i = 0; i < productsId.size(); i++){
-    //   Serial.println(productsId[i]);
-    // }
+    request_body = server.arg("plain");
+
+
+    DeserializationError error = deserializeJson(tempJson, request_body);
+    if(error) {
+      Serial.println("Erro");
+      return;
+    }
+
+    serializeJson(tempJson, Serial);
+    Serial.println();
+
+    String color = tempJson["cor"].as<String>();
+
+
+    if(tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>()) {
+      JsonArray produtosArray = tempJson["produtos"].as<JsonArray>();
+
+      String* productsColors = new String[produtosArray.size()];
+
+      JsonArray storegeProducts = getProducts();
+
+
+      for(size_t i = 0; i < produtosArray.size(); i++) {
+
+        for(size_t j = 0; j < storegeProducts.size(); j++) {
+          if(produtosArray[i].as<int>() == storegeProducts[j]["id"].as<int>()){
+            Serial.println(storegeProducts[j]["name"].as<String>());
+            Serial.println(storegeProducts[j]["id"].as<int>());
+             productsColors[i] = storegeProducts[j]["value"].as<String>();
+            
+          }
+        }
+
+      }
+
+      
+      for(size_t i = 0; i < produtosArray.size(); i++) {
+        Serial.println(productsColors[i]);
+      }
+
+    } 
+
+    midiaColor = parseColorString(color);
+
+    currentState = POST_MIDIA_REQUEST_STATE;
+
+    // Send color to antoher function 
+    response = "{\"message\":\"success\"}";
+    server.send(200, "application/json", response);
+    return;
+
   }
+
+  response = "{\"message\":\"config mode is true\"}";
+  server.send(200, "application/json", response);
   
+}
+
+void handleTests(){
   
+  Serial.println("Handle Tests");
+
+  String response;
+
+  
+
+  String request_body;
+
+  JsonArray products;
+
+  products = getProducts();
+
+  for(size_t i = 0; i < products.size(); i++) {
+    Serial.println(products[i]["name"].as<String>());
+    Serial.println(products[i]["id"].as<int>());
+  }
+
+
+  // if(server.hasArg("plain") == false) {
+  //   response = "{\"message\":\"empty body\"}";
+  //   server.send(200, "application/json", response);
+  //   return;
+  // }
+
+  // request_body = server.arg("plain");
+
+
+  // DeserializationError error = deserializeJson(tempJson, request_body);
+  // if(error) {
+  //   Serial.println("Erro");
+  //   return;
+  // }
+
+  // serializeJson(tempJson, Serial);
+  // Serial.println();
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
   return;
 
   
+}
+
+
+
+JsonArray getProducts() {
+
+  DynamicJsonDocument json = readFileAndConvertoArduinoJson("/data.txt");
+  JsonArray products;
+
+  if(json.containsKey("config") && json["config"].containsKey("products") && json["config"]["products"].is<JsonArray>()){
+    products = json["config"]["products"].as<JsonArray>();
+    
+
+  }
+  
+  return products;
+
 }
 
 
@@ -508,17 +668,38 @@ void handleInteract(){
   return;
 }
 
-bool compareColor(CRGB led, CRGB categoryColor)
+bool compareColor(CRGB led, CRGB categoriesColor)
 {
 
   // USE_SERIAL.println(String("FadeLightBy") + " (" + String(led.r) + "," + String(led.g) + "," + String(led.b) + ")");
-  if (led.r != categoryColor.r || led.g != categoryColor.g || led.b != categoryColor.b)
+  if (led.r != categoriesColor.r || led.g != categoriesColor.g || led.b != categoriesColor.b)
   {
     return true;
   }
 
+
   return false;
 }
+
+// bool compareColor_(CRGB led, CRGB[] categoriesColor)
+// {
+
+//   for( int x=0; x < categoriesColor.size(); x++)
+//   {
+
+//     // USE_SERIAL.println(String("FadeLightBy") + " (" + String(led.r) + "," + String(led.g) + "," + String(led.b) + ")");
+//     if (led.r != categoriesColor[x].r || led.g != categoriesColor[x].g || led.b != categoriesColor[x].b)
+//     {
+//       return true;
+//     }
+//   }
+
+//   return false;
+// }
+
+
+
+
 
 void handleNotFound()
 {
@@ -701,7 +882,7 @@ String read(String filename)
 CRGB parseColorString(String colorString)
 {
 
-  Serial.println(colorString);
+  // Serial.println(colorString);
   if (colorString == responseRedColor_UPPER)
     colorString = redColor_LED_UPPER;
   else if (colorString == responseYellowColor_UPPER)
