@@ -46,6 +46,7 @@ CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
 void dumpJsonArray(const JsonArray &jsonArray);
 
+void printRGB(CRGB rgb);
 
 const int DEFAULT_STATE = 1;
 const int POST_REQUEST_STATE = 12;
@@ -83,6 +84,7 @@ const String purpleColor_LED_UPPER = "#9932CC";
 const String orangeColor_LED_UPPER = "#FF1A00";
 const String greenColor_LED_UPPER = "#DDFF00";
 const String blueColor_LED_UPPER = "#0000FF";
+
 
 int delayCategoryColor;
 
@@ -124,8 +126,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-// #define LED_PIN_1 2
-#define LED_PIN_1 13
+#define LED_PIN_1 2
+// #define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -150,7 +152,9 @@ WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
 #define NUM_LEDS 50
+// #define NUM_LEDS 10
 #define AMOUNT_SHELFS 8
+// #define AMOUNT_SHELFS 1
 
 CRGB leds1[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
@@ -179,8 +183,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -373,23 +377,27 @@ void applyColorCategory()
 
 
 void applyMidiaColor(){
-    Serial.println("applyMidiaColor()");
 
-    for (size_t i = 0; i <= 255; i++)
+  for (size_t i = 0; i <= 255; i++)
+  {
+    for(size_t j = 0; j < NUM_LEDS; j++) 
     {
-      for(size_t j = 0; j < NUM_LEDS; j++) 
-      {
-        for (size_t k = 0; k < AMOUNT_SHELFS; k++) {
-          if(compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
-          {
-            fadeOut(leds[k][j], i);
-          } else {
-            leds[k][j] = midiaColor;
-          }
+      for (size_t k = 0; k < 1; k++) {
+        if(compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
+        {
+
+          leds[k][j].r += leds[k][j].r < midiaColor.r ? 5 : 0;
+          leds[k][j].g += leds[k][j].g < midiaColor.g ? 5 : 0;
+          leds[k][j].b += leds[k][j].b < midiaColor.b ? 5 : 0;
+
+        } else {
+          fadeOut(leds[k][j], i);
         }
       }
     }
-    
+    FastLED.show();
+  }
+  
 }
 
 void handleColor()
@@ -499,8 +507,8 @@ void handleProducts(){
 
         for(size_t j = 0; j < storegeProducts.size(); j++) {
           if(produtosArray[i].as<int>() == storegeProducts[j]["id"].as<int>()){
-            Serial.println(storegeProducts[j]["name"].as<String>());
-            Serial.println(storegeProducts[j]["id"].as<int>());
+            // Serial.println(storegeProducts[j]["name"].as<String>());
+            // Serial.println(storegeProducts[j]["id"].as<int>());
 
             productsColors[i] = parseColorString(storegeProducts[j]["value"].as<String>()); 
             
@@ -510,9 +518,9 @@ void handleProducts(){
       }
 
       
-      for(size_t i = 0; i < produtosArray.size(); i++) {
-        Serial.println(productsColors[i].r);
-      }
+      // for(size_t i = 0; i < produtosArray.size(); i++) {
+      //   Serial.println(productsColors[i].r);
+      // }
 
     } 
 
@@ -610,8 +618,6 @@ void handleTests(){
   
 }
 
-
-
 JsonArray getProducts() {
 
   DynamicJsonDocument json = readFileAndConvertoArduinoJson("/data.txt");
@@ -686,8 +692,8 @@ bool compareColor(CRGB led, CRGB categoriesColor)
     return true;
   }
 
-
   return false;
+  
 }
 
 bool compareColorMidiaProducts(CRGB led, CRGB* categoriesColor, size_t size)
@@ -696,18 +702,16 @@ bool compareColorMidiaProducts(CRGB led, CRGB* categoriesColor, size_t size)
   for( int x=0; x < size; x++)
   {
 
-    // USE_SERIAL.println(String("FadeLightBy") + " (" + String(led.r) + "," + String(led.g) + "," + String(led.b) + ")");
-    if (led.r != categoriesColor[x].r || led.g != categoriesColor[x].g || led.b != categoriesColor[x].b)
+    if (led.r == categoriesColor[x].r && led.g == categoriesColor[x].g && led.b == categoriesColor[x].b)
     {
       return true;
     }
+
   }
 
   return false;
+
 }
-
-
-
 
 
 void handleNotFound()
@@ -776,6 +780,17 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   default:
     break;
   }
+}
+
+
+void printRGB(CRGB rgb){
+  Serial.print("(");
+  Serial.print(rgb.r);
+  Serial.print(",");
+  Serial.print(rgb.g);
+  Serial.print(",");
+  Serial.print(rgb.b);
+  Serial.print(") ");
 }
 
 /**
@@ -1035,20 +1050,20 @@ void setLEDStripProperties()
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
 
-      if (segmentColor == responseRedColor)
-        segmentColor = redColor_LED;
-      else if (segmentColor == responseYellowColor)
-        segmentColor = yellowColor_LED;
-      else if (segmentColor == responsePurpleColor)
-        segmentColor = purpleColor_LED;
-      else if (segmentColor == responseOrangeColor)
-        segmentColor = orangeColor_LED;
-      else if (segmentColor == responseGreenColor)
-        segmentColor = greenColor_LED;
-      else if (segmentColor == responseBlueColor)
-        segmentColor = blueColor_LED;
-      else
-        Serial.println("Cor inválida");
+      // if (segmentColor == responseRedColor)
+      //   segmentColor = redColor_LED;
+      // else if (segmentColor == responseYellowColor)
+      //   segmentColor = yellowColor_LED;
+      // else if (segmentColor == responsePurpleColor)
+      //   segmentColor = purpleColor_LED;
+      // else if (segmentColor == responseOrangeColor)
+      //   segmentColor = orangeColor_LED;
+      // else if (segmentColor == responseGreenColor)
+      //   segmentColor = greenColor_LED;
+      // else if (segmentColor == responseBlueColor)
+      //   segmentColor = blueColor_LED;
+      // else
+      //   Serial.println("Cor inválida");
 
       // Map<String, String> colorMapping = new HashMap<>();
       // colorMapping.put(responseRedColor, redColor_LED);
