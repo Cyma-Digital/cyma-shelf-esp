@@ -29,7 +29,7 @@ void waitColor();
 void handleColor();
 void handleProducts();
 void handleInteract();
-void handleUpdateConfig();
+void handleConfig();
 void handleTests();
 JsonArray getProducts();
 void handleConfigMode();
@@ -126,8 +126,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-#define LED_PIN_1 2
-// #define LED_PIN_1 13
+// #define LED_PIN_1 2
+#define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -183,8 +183,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -241,7 +241,7 @@ void setup()
   server.begin();
   server.on("/", handleRoot);
   server.on("/config", handleRoot);
-  server.on("/config-update", handleUpdateConfig);
+  server.on("/config-handle", handleConfig);
   server.on("/category", handleColor);
   server.on("/products", handleProducts);
   server.on("/config-mode", handleConfigMode);
@@ -383,7 +383,7 @@ void applyMidiaColor(){
   {
     for(size_t j = 0; j < NUM_LEDS; j++) 
     {
-      for (size_t k = 0; k < 1; k++) {
+      for (size_t k = 0; k < AMOUNT_SHELFS; k++) {
         if(compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
         {
 
@@ -541,38 +541,55 @@ void handleProducts(){
   
 }
 
-void handleUpdateConfig(){
-  Serial.println("HandleUpdateConfig");
-
+void handleConfig(){
+  Serial.println("Handle Config");
 
   String response;
-  String request_body;
-  DynamicJsonDocument tempJson(4048);
 
-  if(server.hasArg("plain") == false) {
-    response = "{\"message\":\"Empty body\"}";
-    server.send(200, "application/json", response);
-    return;
-  }
+  if (server.method() == HTTP_GET ) {
+
+    SPIFFS.begin();
+    File file = SPIFFS.open("/data.txt", "r");
+    server.streamFile(file, "application/json");
+    file.close();
+    SPIFFS.begin();
+
+  } else if (server.method() == HTTP_POST ) {
+
+    String request_body;
+    DynamicJsonDocument tempJson(4048);
+
+    if(server.hasArg("plain") == false) {
+      response = "{\"message\":\"Empty body\"}";
+      server.send(200, "application/json", response);
+      return;
+    }
 
 
-  request_body = server.arg("plain");
-
-
-  DeserializationError error = deserializeJson(tempJson, request_body);
-  if(error){
-    Serial.print("Error: ");
-    Serial.println(error.c_str());
-
-    response = "{\"message\":\"Deserialization Error\"}";
-    server.send(500, "application/json", response);
-  }
-
-  write(tempJson);
+    request_body = server.arg("plain"); 
   
-  setLEDStripProperties();
-  response = "{\"message\":\"Configuration updated\"}";
-  server.send(200, "application/json", response);
+
+
+    DeserializationError error = deserializeJson(tempJson, request_body);
+    if(error){
+      Serial.print("Error: ");
+      Serial.println(error.c_str());
+
+      response = "{\"message\":\"Deserialization Error\"}";
+      server.send(500, "application/json", response);
+    }
+
+    write(tempJson);
+  
+    setLEDStripProperties();
+    response = "{\"message\":\"Configuration updated\"}";
+    server.send(200, "application/json", response);
+
+
+  } else {
+    response = "{\"message\":\"Method Not Allowed\"}";
+    server.send(405, "application/json", response);
+  }
 
 
 }
