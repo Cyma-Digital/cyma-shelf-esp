@@ -296,7 +296,7 @@ void stateMachine()
   case 3:
     applyMidiaColor();
     lastColor = millis();
-    currentState = 2;
+    // currentState = 2;
   default:
     break;
   }
