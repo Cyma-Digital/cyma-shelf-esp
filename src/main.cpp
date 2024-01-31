@@ -239,6 +239,8 @@ void setup()
   }
 
   server.begin();
+  server.enableCORS();
+  server.enableCrossOrigin();
   server.on("/", handleRoot);
   server.on("/config", handleRoot);
   server.on("/config-handle", handleConfig);
