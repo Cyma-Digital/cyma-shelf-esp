@@ -30,6 +30,7 @@ void handleColor();
 void handleProducts();
 void handleInteract();
 void handleConfig();
+void fadeToBlack();
 void handleTests();
 JsonArray getProducts();
 void handleConfigMode();
@@ -183,8 +184,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -346,6 +347,20 @@ void fadeIn(CRGB &shelf, int brightness)
   shelf.maximizeBrightness(0 + brightness);
 }
 
+void fadeToBlack(){
+
+  for (size_t i = 0; i <= 255; i++)
+  {
+    for(size_t j = 0; j < NUM_LEDS; j++) 
+    {
+      for (size_t k = 0; k < AMOUNT_SHELFS; k++) {
+        leds[k][j] = parseColorString("#0f0f0f");
+      }
+    }
+    FastLED.show();
+  }
+}
+
 void applyColorCategory()
 {
 
@@ -464,6 +479,8 @@ void handleProducts(){
   if (configModeActivate == true && tsconfig + interactDelay < millis()) {
     Serial.println("Config mode is false");
     configModeActivate = false;
+    //fadetoBlack
+    // fadeToBlack();
     server.send(200, "application/json", response);
     return;
   }
@@ -680,6 +697,13 @@ void handleConfigMode(){
   serializeJson(tempJson, Serial);
 
   configModeActivate = tempJson["status"].as<boolean>();
+  if(!configModeActivate) {
+    fadeToBlack();
+    response = "{\"message\":\"config mode is false\"}";
+    server.send(200, "application/json", response);
+    return;
+
+  }
   Serial.println(configModeActivate);
 
   currentState = BACK_DEFAULT_STATE;
