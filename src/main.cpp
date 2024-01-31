@@ -593,8 +593,7 @@ void handleConfig(){
     if(error){
       Serial.print("Error: ");
       Serial.println(error.c_str());
-
-      response = "{\"message\":\"Deserialization Error\"}";
+      response = "{\"message\":\"" + String(error.c_str()) +"\"}";
       server.send(500, "application/json", response);
     }
 
