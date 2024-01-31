@@ -91,10 +91,10 @@ int delayCategoryColor;
 int lastColor = 0;
 
 // esp@192.168.0.10
-IPAddress device_IP(192, 168, 0, 10);
+// IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
-// IPAddress device_IP(192,168, 0, 20);
+IPAddress device_IP(192,168, 0, 20);
 
 // esp@192.168.0.30
 // IPAddress device_IP(192, 168, 0, 30);
@@ -126,8 +126,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-// #define LED_PIN_1 2
-#define LED_PIN_1 13
+#define LED_PIN_1 2
+// #define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
