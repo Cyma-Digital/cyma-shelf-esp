@@ -39,7 +39,7 @@ void handleTests();
 JsonArray getProducts();
 void handleConfigMode();
 bool compareColor(CRGB led, CRGB categoryColor);
-bool compareColorMidiaProducts(CRGB led, CRGB* categoriesColor, size_t size);
+bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
 void checkAndWriteToFile();
@@ -49,7 +49,7 @@ void setLEDStripProperties();
 void clearLEDStripToApplyConfig(int shelfid);
 CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
-std::vector<int> parseRGBString(const std::string& rgbString);
+std::vector<int> parseRGBString(const std::string &rgbString);
 void dumpJsonArray(const JsonArray &jsonArray);
 
 void printRGB(CRGB rgb);
@@ -91,16 +91,15 @@ const String orangeColor_LED_UPPER = "#FF1A00";
 const String greenColor_LED_UPPER = "#DDFF00";
 const String blueColor_LED_UPPER = "#0000FF";
 
-
 int delayCategoryColor;
 
 int lastColor = 0;
 
 // esp@192.168.0.10
-IPAddress device_IP(192, 168, 0, 10);
+// IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
-// IPAddress device_IP(192,168, 0, 20);
+IPAddress device_IP(192,168, 0, 20);
 
 // esp@192.168.0.30
 // IPAddress device_IP(192, 168, 0, 30);
@@ -121,10 +120,9 @@ static bool eth_connected = false;
 const char *SSID = "StMarche";
 const char *password = NULL;
 
-
-const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":128,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":2,\"segments\":[{\"segmentIndex\":0,\"size\":15,\"product\":1,\"color\":\"#00ff00\",\"realSize\":15},{\"segmentIndex\":1,\"size\":25,\"realSize\":10,\"product\":2,\"color\":\"#ff0000\"}]}]}";
+const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":128,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":2,\"segments\":[{\"segmentIndex\":0,\"size\":1,\"product\":1,\"color\":\"#00ff00\",\"realSize\":1},{\"segmentIndex\":1,\"size\":2,\"realSize\":1,\"product\":2,\"color\":\"#ff0000\"}]}]}";
 // String* productsColors = nullptr;
-CRGB* productsColors = nullptr;
+CRGB *productsColors = nullptr;
 
 size_t productsColorsSize = 0;
 
@@ -132,8 +130,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-// #define LED_PIN_1 2
-#define LED_PIN_1 13
+#define LED_PIN_1 2
+// #define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -189,8 +187,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -256,7 +254,6 @@ void setup()
   server.on("/interact", handleInteract);
   server.on("/function-test", handleTests);
   server.onNotFound(handleNotFound);
-
 
   Serial.println("[+] Creating websocket server... ");
 
@@ -352,13 +349,15 @@ void fadeIn(CRGB &shelf, int brightness)
   shelf.maximizeBrightness(0 + brightness);
 }
 
-void fadeToBlack(){
+void fadeToBlack()
+{
 
   for (size_t i = 0; i <= 255; i++)
   {
-    for(size_t j = 0; j < NUM_LEDS; j++) 
+    for (size_t j = 0; j < NUM_LEDS; j++)
     {
-      for (size_t k = 0; k < AMOUNT_SHELFS; k++) {
+      for (size_t k = 0; k < AMOUNT_SHELFS; k++)
+      {
         leds[k][j] = parseColorString("#0f0f0f");
       }
     }
@@ -398,106 +397,110 @@ void applyColorCategory()
   return;
 }
 
-
-void applyMidiaColor(){
+void applyMidiaColor()
+{
 
   for (size_t i = 0; i <= 255; i++)
   {
-    for(size_t j = 0; j < NUM_LEDS; j++) 
+    for (size_t j = 0; j < NUM_LEDS; j++)
     {
-      for (size_t k = 0; k < AMOUNT_SHELFS; k++) {
-        if(compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
+      for (size_t k = 0; k < AMOUNT_SHELFS; k++)
+      {
+        if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
         {
 
           leds[k][j].r += leds[k][j].r < midiaColor.r ? 5 : 0;
           leds[k][j].g += leds[k][j].g < midiaColor.g ? 5 : 0;
           leds[k][j].b += leds[k][j].b < midiaColor.b ? 5 : 0;
-
-        } else {
+        }
+        else
+        {
           fadeOut(leds[k][j], i);
         }
       }
     }
     FastLED.show();
   }
-  
 }
 
 void handleColor()
 {
 
-    Serial.println("\nHandler Category");
-    USE_SERIAL.print("Current State: ");
-    USE_SERIAL.println(currentState);
-    String response;
+  Serial.println("\nHandler Category");
+  USE_SERIAL.print("Current State: ");
+  USE_SERIAL.println(currentState);
+  String response;
 
-    if(configModeActivate == true && tsconfig + interactDelay < millis()){
-      Serial.println("Config mode is false");
-      configModeActivate = false;
-      response = "{\"message\":\"config mode false\"}";
-      server.send(200, "application/json", response);
+  if (configModeActivate == true && tsconfig + interactDelay < millis())
+  {
+    Serial.println("Config mode is false");
+    configModeActivate = false;
+    response = "{\"message\":\"config mode false\"}";
+    server.send(200, "application/json", response);
+    return;
+  }
+
+  if (configModeActivate == false)
+  {
+
+    Serial.println("\nHandler Category");
+
+    if (server.hasArg("plain") == false)
+    {
       return;
     }
 
-
-    if(configModeActivate == false){
-
-      Serial.println("\nHandler Category");
-
-     if (server.hasArg("plain") == false)
-     {
-       return;
-     }
-  
-     DynamicJsonDocument json(2048);
-     String body = server.arg("plain");
-     DeserializationError error = deserializeJson(json, body);
-     if (error)
-     {
-       Serial.println("Error");
-       return;
-     }
-  
-     serializeJson(json, Serial);
-     USE_SERIAL.println();
-  
-     String colorFromTerminal = json["color"].as<String>();
-     categoryColor = parseColorString(colorFromTerminal);
-  
-     currentState = POST_REQUEST_STATE;
-  
-     response = "{\"message\":\"success\"}";
-     server.send(200, "application/json", response);
-  
+    DynamicJsonDocument json(2048);
+    String body = server.arg("plain");
+    DeserializationError error = deserializeJson(json, body);
+    if (error)
+    {
+      Serial.println("Error");
+      return;
     }
 
-    response = "{\"message\":\"config mode is true\"}";
+    serializeJson(json, Serial);
+    USE_SERIAL.println();
+
+    String colorFromTerminal = json["color"].as<String>();
+    categoryColor = parseColorString(colorFromTerminal);
+
+    currentState = POST_REQUEST_STATE;
+
+    response = "{\"message\":\"success\"}";
     server.send(200, "application/json", response);
+  }
+
+  response = "{\"message\":\"config mode is true\"}";
+  server.send(200, "application/json", response);
 }
 
-void handleProducts(){
+void handleProducts()
+{
 
   Serial.println("Handle Products");
 
   String response;
 
-  if (configModeActivate == true && tsconfig + interactDelay < millis()) {
+  if (configModeActivate == true && tsconfig + interactDelay < millis())
+  {
     Serial.println("Config mode is false");
     configModeActivate = false;
-    //fadetoBlack
-    // fadeToBlack();
+    // fadetoBlack
+    //  fadeToBlack();
     server.send(200, "application/json", response);
     return;
   }
 
-  if(configModeActivate == false) {
+  if (configModeActivate == false)
+  {
 
     String request_body;
 
     DynamicJsonDocument tempJson(2048);
 
-
-    if(server.hasArg("plain") == false) {
+    if (server.hasArg("plain") == false)
+    {
       response = "{\"message\":\"empty body\"}";
       server.send(200, "application/json", response);
       return;
@@ -505,9 +508,9 @@ void handleProducts(){
 
     request_body = server.arg("plain");
 
-
     DeserializationError error = deserializeJson(tempJson, request_body);
-    if(error) {
+    if (error)
+    {
       Serial.println("Erro");
       return;
     }
@@ -517,115 +520,108 @@ void handleProducts(){
 
     String color = tempJson["cor"].as<String>();
 
-
-    if(tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>()) {
+    if (tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>())
+    {
       JsonArray produtosArray = tempJson["produtos"].as<JsonArray>();
 
-      
       productsColors = new CRGB[produtosArray.size()];
       productsColorsSize = produtosArray.size();
 
       JsonArray storegeProducts = getProducts();
 
+      for (size_t i = 0; i < produtosArray.size(); i++)
+      {
 
-      for(size_t i = 0; i < produtosArray.size(); i++) {
-
-        for(size_t j = 0; j < storegeProducts.size(); j++) {
-          if(produtosArray[i].as<int>() == storegeProducts[j]["id"].as<int>()){
+        for (size_t j = 0; j < storegeProducts.size(); j++)
+        {
+          if (produtosArray[i].as<int>() == storegeProducts[j]["id"].as<int>())
+          {
             // Serial.println(storegeProducts[j]["name"].as<String>());
             // Serial.println(storegeProducts[j]["id"].as<int>());
 
-            productsColors[i] = parseColorString(storegeProducts[j]["value"].as<String>()); 
-            
+            productsColors[i] = parseColorString(storegeProducts[j]["value"].as<String>());
           }
         }
-
       }
 
-      
       // for(size_t i = 0; i < produtosArray.size(); i++) {
       //   Serial.println(productsColors[i].r);
       // }
-
-    } 
+    }
 
     midiaColor = parseColorString(color);
 
     currentState = POST_MIDIA_REQUEST_STATE;
 
-    // Send color to antoher function 
+    // Send color to antoher function
     response = "{\"message\":\"success\"}";
     server.send(200, "application/json", response);
     return;
-
   }
 
   response = "{\"message\":\"config mode is true\"}";
   server.send(200, "application/json", response);
-  
 }
 
-void handleConfig(){
+void handleConfig()
+{
   Serial.println("Handle Config");
 
   String response;
 
-  if (server.method() == HTTP_GET ) {
+  if (server.method() == HTTP_GET)
+  {
 
     SPIFFS.begin();
     File file = SPIFFS.open("/data.txt", "r");
     server.streamFile(file, "application/json");
     file.close();
     SPIFFS.begin();
-
-  } else if (server.method() == HTTP_POST ) {
+  }
+  else if (server.method() == HTTP_POST)
+  {
 
     String request_body;
     DynamicJsonDocument tempJson(4048);
 
-    if(server.hasArg("plain") == false) {
+    if (server.hasArg("plain") == false)
+    {
       response = "{\"message\":\"Empty body\"}";
       server.send(200, "application/json", response);
       return;
     }
 
-
-    request_body = server.arg("plain"); 
-  
-
+    request_body = server.arg("plain");
 
     DeserializationError error = deserializeJson(tempJson, request_body);
-    if(error){
+    if (error)
+    {
       Serial.print("Error: ");
       Serial.println(error.c_str());
-      response = "{\"message\":\"" + String(error.c_str()) +"\"}";
+      response = "{\"message\":\"" + String(error.c_str()) + "\"}";
       server.send(500, "application/json", response);
     }
 
     write(tempJson);
-  
+
     setLEDStripProperties();
     response = "{\"message\":\"Configuration updated\"}";
     server.send(200, "application/json", response);
-
-
-  } else {
+  }
+  else
+  {
     response = "{\"message\":\"Method Not Allowed\"}";
     server.send(405, "application/json", response);
   }
-
-
 }
 
 // This funcion handler must be used to test some function without wait to all the code flow
-void handleTests(){
+void handleTests()
+{
   Serial.println("Handle Tests");
 
   String response;
   String request_body;
-
-
-
 
   // JsonArray products;
 
@@ -638,7 +634,8 @@ void handleTests(){
 
   DynamicJsonDocument tempJson(2048);
 
-  if(server.hasArg("plain") == false) {
+  if (server.hasArg("plain") == false)
+  {
     response = "{\"message\":\"empty body\"}";
     server.send(200, "application/json", response);
     return;
@@ -646,9 +643,9 @@ void handleTests(){
 
   request_body = server.arg("plain");
 
-
   DeserializationError error = deserializeJson(tempJson, request_body);
-  if(error) {
+  if (error)
+  {
     Serial.println("Erro");
     return;
   }
@@ -656,7 +653,7 @@ void handleTests(){
   serializeJson(tempJson, Serial);
 
   std::string color = tempJson["color"].as<std::string>();
-  
+
   std::vector<int> colorArray = parseRGBString(color);
   CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
   fill_solid(leds[0], NUM_LEDS, currentColor);
@@ -666,34 +663,30 @@ void handleTests(){
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
   return;
-
-  
 }
-
 
 /**
  * The function `getProducts()` reads a JSON file, extracts the "products" array from it, and returns
  * the array.
- * 
+ *
  * @return a JsonArray object named "products".
  */
-JsonArray getProducts() {
+JsonArray getProducts()
+{
 
   DynamicJsonDocument json = readFileAndConvertoArduinoJson("/data.txt");
   JsonArray products;
 
-  if(json.containsKey("config") && json["config"].containsKey("products") && json["config"]["products"].is<JsonArray>()){
+  if (json.containsKey("config") && json["config"].containsKey("products") && json["config"]["products"].is<JsonArray>())
+  {
     products = json["config"]["products"].as<JsonArray>();
-    
-
   }
-  
-  return products;
 
+  return products;
 }
 
-
-void handleConfigMode(){
+void handleConfigMode()
+{
   Serial.println("Handle Configuration Mode");
 
   String response;
@@ -701,7 +694,8 @@ void handleConfigMode(){
 
   DynamicJsonDocument tempJson(1024);
 
-  if(server.hasArg("plain") == false) {
+  if (server.hasArg("plain") == false)
+  {
     response = "{\"message\":\"empty body\"}";
     server.send(200, "application/json", response);
     return;
@@ -710,41 +704,39 @@ void handleConfigMode(){
   request_body = server.arg("plain");
 
   DeserializationError error = deserializeJson(tempJson, request_body);
-  if(error) {
+  if (error)
+  {
     Serial.println("Erro");
     return;
   }
 
-
   serializeJson(tempJson, Serial);
 
   configModeActivate = tempJson["status"].as<boolean>();
-  if(!configModeActivate) {
+  if (!configModeActivate)
+  {
     fadeToBlack();
     response = "{\"message\":\"config mode is false\"}";
     server.send(200, "application/json", response);
     return;
-
   }
   Serial.println(configModeActivate);
 
   currentState = BACK_DEFAULT_STATE;
-  
+
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
   return;
-
 }
 
-
-void handleInteract(){
+void handleInteract()
+{
   Serial.println("Handle Interact");
 
   tsconfig = millis();
 
-
   String response;
-  response = "{\"message\":\""+ String(tsconfig)+"\"}";
+  response = "{\"message\":\"" + String(tsconfig) + "\"}";
   server.send(200, "application/json", response);
   return;
 }
@@ -759,26 +751,22 @@ bool compareColor(CRGB led, CRGB categoriesColor)
   }
 
   return false;
-  
 }
 
-bool compareColorMidiaProducts(CRGB led, CRGB* categoriesColor, size_t size)
+bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size)
 {
 
-  for( int x=0; x < size; x++)
+  for (int x = 0; x < size; x++)
   {
 
     if (led.r == categoriesColor[x].r && led.g == categoriesColor[x].g && led.b == categoriesColor[x].b)
     {
       return true;
     }
-
   }
 
   return false;
-
 }
-
 
 void handleNotFound()
 {
@@ -848,8 +836,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   }
 }
 
-
-void printRGB(CRGB rgb){
+void printRGB(CRGB rgb)
+{
   Serial.print("(");
   Serial.print(rgb.r);
   Serial.print(",");
@@ -1233,38 +1221,44 @@ void clearLEDStripToApplyConfig(int shelfid)
   fill_solid(leds[shelfid], NUM_LEDS, CRGB::Black);
 }
 
-
 /**
  * The function takes a string representing an RGB color and returns a vector of integers representing
  * the individual color components.
- * 
+ *
  * @param rgbString The `rgbString` parameter is a `std::string` that represents an RGB color value in
  * the format "R,G,B".
  */
-std::vector<int> parseRGBString(const std::string& rgbString){
+std::vector<int> parseRGBString(const std::string &rgbString)
+{
   std::vector<int> rgbValues;
 
-  if(rgbString.substr(0,4) == "rgb(" && rgbString.back() == ')'){ 
+  if (rgbString.substr(0, 4) == "rgb(" && rgbString.back() == ')')
+  {
 
     std::string valuesString = rgbString.substr(4, rgbString.size() - 5);
 
     std::stringstream ss(valuesString);
     std::string token;
 
-    while (std::getline(ss, token, ',')) {
-          try {
-              // Convert the token to an integer and add it to the vector
-              int value = std::stoi(token);
-              rgbValues.push_back(value);
-          } catch (const std::invalid_argument& e) {
-              // Handle invalid arguments (non-integer values)
-              std::cerr << "Invalid RGB value: " << token << std::endl;
-          }
+    while (std::getline(ss, token, ','))
+    {
+      try
+      {
+        // Convert the token to an integer and add it to the vector
+        int value = std::stoi(token);
+        rgbValues.push_back(value);
       }
-  } else {
-     std::cerr << "Invalid RGB string format: " << rgbString << std::endl;
+      catch (const std::invalid_argument &e)
+      {
+        // Handle invalid arguments (non-integer values)
+        std::cerr << "Invalid RGB value: " << token << std::endl;
+      }
+    }
+  }
+  else
+  {
+    std::cerr << "Invalid RGB string format: " << rgbString << std::endl;
   }
 
   return rgbValues;
 }
-
