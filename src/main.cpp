@@ -6,6 +6,10 @@
 #include <WiFi.h>
 #include <Ethernet.h>
 #include <ETH.h>
+#include <vector>
+#include <sstream>
+#include <string>
+#include <iostream>
 
 #include <WebSocketsServer.h>
 
@@ -45,6 +49,7 @@ void setLEDStripProperties();
 void clearLEDStripToApplyConfig(int shelfid);
 CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
+std::vector<int> parseRGBString(const std::string& rgbString);
 void dumpJsonArray(const JsonArray &jsonArray);
 
 void printRGB(CRGB rgb);
@@ -117,7 +122,7 @@ const char *SSID = "StMarche";
 const char *password = NULL;
 
 
-const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":127,\"id\":null,\"delay\":10000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":2,\"segments\":[{\"segmentIndex\":0,\"size\":15,\"product\":1,\"color\":\"#00ff00\"},{\"segmentIndex\":1,\"product\":2,\"color\":\"#ff0000\"}]}]}";
+const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":128,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":2,\"segments\":[{\"segmentIndex\":0,\"size\":15,\"product\":1,\"color\":\"#00ff00\",\"realSize\":15},{\"segmentIndex\":1,\"size\":25,\"realSize\":10,\"product\":2,\"color\":\"#ff0000\"}]}]}";
 // String* productsColors = nullptr;
 CRGB* productsColors = nullptr;
 
@@ -593,8 +598,7 @@ void handleConfig(){
     if(error){
       Serial.print("Error: ");
       Serial.println(error.c_str());
-
-      response = "{\"message\":\"Deserialization Error\"}";
+      response = "{\"message\":\"" + String(error.c_str()) +"\"}";
       server.send(500, "application/json", response);
     }
 
@@ -620,33 +624,44 @@ void handleTests(){
   String response;
   String request_body;
 
-  JsonArray products;
 
-  products = getProducts();
 
-  for(size_t i = 0; i < products.size(); i++) {
-    Serial.println(products[i]["name"].as<String>());
-    Serial.println(products[i]["id"].as<int>());
+
+  // JsonArray products;
+
+  // products = getProducts();
+
+  // for(size_t i = 0; i < products.size(); i++) {
+  //   Serial.println(products[i]["name"].as<String>());
+  //   Serial.println(products[i]["id"].as<int>());
+  // }
+
+  DynamicJsonDocument tempJson(2048);
+
+  if(server.hasArg("plain") == false) {
+    response = "{\"message\":\"empty body\"}";
+    server.send(200, "application/json", response);
+    return;
   }
 
-
-  // if(server.hasArg("plain") == false) {
-  //   response = "{\"message\":\"empty body\"}";
-  //   server.send(200, "application/json", response);
-  //   return;
-  // }
-
-  // request_body = server.arg("plain");
+  request_body = server.arg("plain");
 
 
-  // DeserializationError error = deserializeJson(tempJson, request_body);
-  // if(error) {
-  //   Serial.println("Erro");
-  //   return;
-  // }
+  DeserializationError error = deserializeJson(tempJson, request_body);
+  if(error) {
+    Serial.println("Erro");
+    return;
+  }
 
-  // serializeJson(tempJson, Serial);
-  // Serial.println();
+  serializeJson(tempJson, Serial);
+
+  std::string color = tempJson["color"].as<std::string>();
+  
+  std::vector<int> colorArray = parseRGBString(color);
+  CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
+  fill_solid(leds[0], NUM_LEDS, currentColor);
+
+  Serial.println();
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
@@ -655,6 +670,13 @@ void handleTests(){
   
 }
 
+
+/**
+ * The function `getProducts()` reads a JSON file, extracts the "products" array from it, and returns
+ * the array.
+ * 
+ * @return a JsonArray object named "products".
+ */
 JsonArray getProducts() {
 
   DynamicJsonDocument json = readFileAndConvertoArduinoJson("/data.txt");
@@ -1060,6 +1082,7 @@ void setLEDStripProperties()
   int pixels = json["config"]["pixels"].as<int>();
   int brightness = json["config"]["brightness"].as<int>();
   int delayColor = json["config"]["delay"].as<int>();
+  interactDelay = json["config"]["interactDelay"].as<unsigned long>();
 
   delayCategoryColor = delayColor;
 
@@ -1210,11 +1233,38 @@ void clearLEDStripToApplyConfig(int shelfid)
   fill_solid(leds[shelfid], NUM_LEDS, CRGB::Black);
 }
 
-/* !! Uncomment the functions below the Ethernet module being used in the ESP32 */
-
-/* ENC28j60 or W5100 */
 
 /**
- * The function initializes the Ethernet shield, checks for hardware presence, and prints the status of
- * the Ethernet connection.
+ * The function takes a string representing an RGB color and returns a vector of integers representing
+ * the individual color components.
+ * 
+ * @param rgbString The `rgbString` parameter is a `std::string` that represents an RGB color value in
+ * the format "R,G,B".
  */
+std::vector<int> parseRGBString(const std::string& rgbString){
+  std::vector<int> rgbValues;
+
+  if(rgbString.substr(0,4) == "rgb(" && rgbString.back() == ')'){ 
+
+    std::string valuesString = rgbString.substr(4, rgbString.size() - 5);
+
+    std::stringstream ss(valuesString);
+    std::string token;
+
+    while (std::getline(ss, token, ',')) {
+          try {
+              // Convert the token to an integer and add it to the vector
+              int value = std::stoi(token);
+              rgbValues.push_back(value);
+          } catch (const std::invalid_argument& e) {
+              // Handle invalid arguments (non-integer values)
+              std::cerr << "Invalid RGB value: " << token << std::endl;
+          }
+      }
+  } else {
+     std::cerr << "Invalid RGB string format: " << rgbString << std::endl;
+  }
+
+  return rgbValues;
+}
+
