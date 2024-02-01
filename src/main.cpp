@@ -1082,6 +1082,7 @@ void setLEDStripProperties()
   int pixels = json["config"]["pixels"].as<int>();
   int brightness = json["config"]["brightness"].as<int>();
   int delayColor = json["config"]["delay"].as<int>();
+  interactDelay = json["config"]["interactDelay"].as<unsigned long>();
 
   delayCategoryColor = delayColor;
 
