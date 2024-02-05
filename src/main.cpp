@@ -1014,11 +1014,12 @@ DynamicJsonDocument readFileAndConvertoArduinoJson(String filename)
 {
   String dataFile = read(filename);
 
-  DynamicJsonDocument json(2048);
+  DynamicJsonDocument json(4048);
   DeserializationError err = deserializeJson(json, dataFile);
   if (err)
   {
     Serial.println("Error");
+    USE_SERIAL.printf(err.c_str());
     return DynamicJsonDocument(0);
   }
 
