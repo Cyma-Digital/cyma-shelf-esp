@@ -99,7 +99,7 @@ int lastColor = 0;
 // IPAddress device_IP(192, 168, 0, 10);
 
 // esp@192.168.0.20
-IPAddress device_IP(192,168, 0, 20);
+// IPAddress device_IP(192,168, 0, 20);
 
 // esp@192.168.0.30
 // IPAddress device_IP(192, 168, 0, 30);
@@ -108,7 +108,7 @@ IPAddress device_IP(192,168, 0, 20);
 // IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
-// IPAddress device_IP(192,168, 0, 50);
+IPAddress device_IP(192,168, 0, 50);
 
 IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 225, 255, 0);
@@ -130,8 +130,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-#define LED_PIN_1 2
-// #define LED_PIN_1 13
+// #define LED_PIN_1 2
+#define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -187,8 +187,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -497,7 +497,7 @@ void handleProducts()
 
     String request_body;
 
-    DynamicJsonDocument tempJson(2048);
+    DynamicJsonDocument tempJson(4048);
 
     if (server.hasArg("plain") == false)
     {
@@ -511,8 +511,10 @@ void handleProducts()
     DeserializationError error = deserializeJson(tempJson, request_body);
     if (error)
     {
-      Serial.println("Erro");
-      return;
+      Serial.print("Error: ");
+      Serial.println(error.c_str());
+      response = "{\"message\":\"" + String(error.c_str()) + "\"}";
+      server.send(500, "application/json", response);
     }
 
     serializeJson(tempJson, Serial);
