@@ -131,8 +131,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-// #define LED_PIN_1 2
-#define LED_PIN_1 13
+#define LED_PIN_1 2
+// #define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -188,8 +188,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -229,7 +229,8 @@ void setup()
   {
     Serial.println("\n[+] Connecting on WiFi network...");
     // WiFi.begin("CymaDigital", "cyma102030");
-    WiFi.begin("DisplayHNK-Net", "cyma102030");
+    // WiFi.begin("DisplayHNK-Net", "cyma102030");
+    WiFi.begin("Gondola 1","cyma102030");
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
@@ -359,7 +360,9 @@ void fadeToBlack()
     {
       for (size_t k = 0; k < AMOUNT_SHELFS; k++)
       {
-        leds[k][j] = parseColorString("#0f0f0f");
+        // leds[k][j] = parseColorString("#ff5511");
+        leds[k][j] = parseColorString("#965511");
+        // leds[k][j] = parseColorString("#0f0f0f");
       }
     }
     FastLED.show();
@@ -401,7 +404,7 @@ void applyColorCategory()
 void applyMidiaColor()
 {
 
-  for (size_t i = 0; i <= 255; i++)
+  for (size_t i = 0; i <= 255; i+=5)
   {
     for (size_t j = 0; j < NUM_LEDS; j++)
     {
@@ -417,6 +420,9 @@ void applyMidiaColor()
         else
         {
           fadeOut(leds[k][j], i);
+          // leds[k][j].r -= leds[k][j].r  == (255 - i) ? 1 : 0;
+          // leds[k][j].g -= leds[k][j].g  == (255 - i) ? 1 : 0;
+          // leds[k][j].b -= leds[k][j].b  == (255 - i) ? 1 : 0;
         }
       }
     }
@@ -660,6 +666,7 @@ void handleTests()
   std::vector<int> colorArray = parseRGBString(color);
   CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
   fill_solid(leds[0], NUM_LEDS, currentColor);
+   fill_solid(leds[1], NUM_LEDS, currentColor);
 
   Serial.println();
 
