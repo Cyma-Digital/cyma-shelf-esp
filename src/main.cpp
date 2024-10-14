@@ -32,8 +32,14 @@ void applyMidiaColor();
 void waitColor();
 void handleColor();
 void handleProducts();
+void handleLightUpAllColors();
 void handleInteract();
 void handleConfig();
+void fadeToColor(CRGB color);
+
+CRGB getDefaultColor();
+void loadColorModeConfig(const DynamicJsonDocument &json);
+
 void fadeToBlack();
 void handleTests();
 JsonArray getProducts();
@@ -51,7 +57,6 @@ CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
 std::vector<int> parseRGBString(const std::string &rgbString);
 void dumpJsonArray(const JsonArray &jsonArray);
-
 void printRGB(CRGB rgb);
 
 const int DEFAULT_STATE = 1;
@@ -60,40 +65,41 @@ const int SET_COLOR_STATE = 2;
 const int BACK_DEFAULT_STATE = 21;
 const int POST_MIDIA_REQUEST_STATE = 3;
 int currentState;
-CRGB categoryColor;
-CRGB midiaColor;
 
-const String responseRedColor = "#ef3e2e";
-const String responseYellowColor = "#fdda65";
-const String responsePurpleColor = "#6e3896";
-const String responseOrangeColor = "#f5833d";
-const String responseGreenColor = "#a1cd3a";
-const String responseBlueColor = "#47559e";
+// enum class ColorMode
+// {
+//   Colors,
+//   Warm,
+//   Cold
+// };
 
-const String redColor_LED = "#ff0000";
-const String yellowColor_LED = "#ff4600";
-const String purpleColor_LED = "#9932cc";
-const String orangeColor_LED = "#ff1a00";
-const String greenColor_LED = "#ddff00";
-const String blueColor_LED = "#0000ff";
+// std::string toString(ColorMode mode)
+// {
+//   switch (mode)
+//   {
+//   case ColorMode::Colors:
+//     return "colors";
+//   case ColorMode::Warm:
+//     return "warm";
+//   case ColorMode::Cold:
+//     return "cold";
+//   default:
+//     return "unknown";
+//   }
+// }
 
-const String responseRedColor_UPPER = "#EF3E2E";
-const String responseYellowColor_UPPER = "#FDDA65";
-const String responsePurpleColor_UPPER = "#6E3896";
-const String responseOrangeColor_UPPER = "#F5833D";
-const String responseGreenColor_UPPER = "#A1CD3A";
-const String responseBlueColor_UPPER = "#47559E";
+// ColorMode fromString(const std::string &str)
+// {
+//   if (str == "colors")
+//     return ColorMode::Colors;
+//   if (str == "warm")
+//     return ColorMode::Warm;
+//   if (str == "cold")
+//     return ColorMode::Cold;
+//   throw std::invalid_argument("Unknown ColorMode: " + str);
+// }
 
-const String redColor_LED_UPPER = "#FF0000";
-const String yellowColor_LED_UPPER = "#FF4600";
-const String purpleColor_LED_UPPER = "#9932CC";
-const String orangeColor_LED_UPPER = "#FF1A00";
-const String greenColor_LED_UPPER = "#DDFF00";
-const String blueColor_LED_UPPER = "#0000FF";
-
-int delayCategoryColor;
-
-int lastColor = 0;
+/* NETWORK CONFIGURATION */
 
 // esp@192.168.0.10
 // IPAddress device_IP(192, 168, 0, 10);
@@ -108,7 +114,7 @@ int lastColor = 0;
 // IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
-IPAddress device_IP(192,168, 0, 50);
+IPAddress device_IP(192, 168, 15, 50);
 
 IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 225, 255, 0);
@@ -120,19 +126,30 @@ static bool eth_connected = false;
 const char *SSID = "StMarche";
 const char *password = NULL;
 
-// const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":40,\"brightness\":128,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":2,\"segments\":[{\"segmentIndex\":0,\"size\":1,\"product\":1,\"color\":\"#00ff00\",\"realSize\":1},{\"segmentIndex\":1,\"size\":2,\"realSize\":1,\"product\":2,\"color\":\"#ff0000\"}]}]}";
-const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":11,\"title\":\"Gondola Ambev\",\"pixelCentimeters\":5,\"brightness\":255,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":5,\"segments\":[{\"segmentIndex\":0,\"size\":1,\"realSize\":1,\"product\":6,\"color\":\"#ffffff\"},{\"segmentIndex\":1,\"size\":2,\"realSize\":1,\"product\":5,\"color\":\"#ff0000\"},{\"segmentIndex\":2,\"size\":4,\"realSize\":2,\"product\":1,\"color\":\"#00ff00\"},{\"segmentIndex\":3,\"size\":7,\"realSize\":3,\"product\":3,\"color\":\"#ffff00\"},{\"segmentIndex\":4,\"size\":10,\"realSize\":3,\"product\":2,\"color\":\"#ff0000\"}]}]}";
-// String* productsColors = nullptr;
+// #define CONNECTION_MODE "Ethernet"
+// #define CONNECTION_MODE "WiFi"
+#define CONNECTION_MODE "noWiFi"
+
+/* LED CONTROLLER CONFIGURATION */
+const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":11,\"title\":\"Gondola Ambev\",\"colorMode\":\"warm\",\"defaultWarmColor\":\"#965511\",\"defaultColdColor\":\"#FFFFFF\",\"pixelCentimeters\":5,\"brightness\":255,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":5,\"segments\":[{\"segmentIndex\":0,\"size\":1,\"realSize\":1,\"product\":6,\"color\":\"#ffffff\"},{\"segmentIndex\":1,\"size\":2,\"realSize\":1,\"product\":5,\"color\":\"#ff0000\"},{\"segmentIndex\":2,\"size\":4,\"realSize\":2,\"product\":1,\"color\":\"#00ff00\"},{\"segmentIndex\":3,\"size\":7,\"realSize\":3,\"product\":3,\"color\":\"#ffff00\"},{\"segmentIndex\":4,\"size\":10,\"realSize\":3,\"product\":2,\"color\":\"#ff0000\"}]}]}";
+
+CRGB categoryColor;
+CRGB midiaColor;
+int delayCategoryColor;
+int lastColor = 0;
 CRGB *productsColors = nullptr;
-
 size_t productsColorsSize = 0;
-
 bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-#define LED_PIN_1 2
-// #define LED_PIN_1 13
+// ColorMode colorMode = ColorMode::Cold;
+std::string colorMode = "cold";
+std::string defaultColdColor = "#FFFFFF";
+std::string defaultWarmColor = "#965511";
+
+// #define LED_PIN_1 2
+#define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -147,10 +164,6 @@ unsigned long tsconfig; // timestamp config
 #define ETH_MDC_PIN 23
 #define ETH_MDIO_PIN 18
 #define ETH_TYPE ETH_PHY_TLK110
-
-// #define CONNECTION_MODE "Ethernet"
-// #define CONNECTION_MODE "WiFi"
-#define CONNECTION_MODE "noWiFi"
 
 WiFiClient client;
 WebServer server(80);
@@ -188,8 +201,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -230,7 +243,7 @@ void setup()
     Serial.println("\n[+] Connecting on WiFi network...");
     // WiFi.begin("CymaDigital", "cyma102030");
     // WiFi.begin("DisplayHNK-Net", "cyma102030");
-    WiFi.begin("Gondola 1","cyma102030");
+    WiFi.begin("ABDOU-NET", "router2015");
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
@@ -252,6 +265,7 @@ void setup()
   server.on("/config-handle", handleConfig);
   server.on("/category", handleColor);
   server.on("/products", handleProducts);
+  server.on("/all", handleLightUpAllColors);
   server.on("/config-mode", handleConfigMode);
   server.on("/interact", handleInteract);
   server.on("/function-test", handleTests);
@@ -286,21 +300,21 @@ void stateMachine()
 {
   switch (currentState)
   {
-  case 1:
+  case DEFAULT_STATE:
     break;
-  case 12:
+  case POST_REQUEST_STATE:
     applyColorCategory();
     lastColor = millis();
     currentState = 2;
     break;
-  case 2:
+  case SET_COLOR_STATE:
     waitColor();
     break;
-  case 21:
+  case BACK_DEFAULT_STATE:
     setLEDStripProperties();
     currentState = DEFAULT_STATE;
     break;
-  case 3:
+  case POST_MIDIA_REQUEST_STATE:
     applyMidiaColor();
     lastColor = millis();
     // currentState = 2;
@@ -311,7 +325,6 @@ void stateMachine()
 
 void waitColor()
 {
-
   if (lastColor + delayCategoryColor < millis())
   {
     currentState = BACK_DEFAULT_STATE;
@@ -351,6 +364,23 @@ void fadeIn(CRGB &shelf, int brightness)
   shelf.maximizeBrightness(0 + brightness);
 }
 
+void fadeToColor(CRGB color)
+{
+  for (size_t i = 0; i <= 255; i++)
+  {
+    for (size_t j = 0; j < NUM_LEDS; j++)
+    {
+      for (size_t k = 0; k < AMOUNT_SHELFS; k++)
+      {
+        leds[k][j].r += leds[k][j].r < color.r ? 5 : 0;
+        leds[k][j].g += leds[k][j].g < color.g ? 5 : 0;
+        leds[k][j].b += leds[k][j].b < color.b ? 5 : 0;
+      }
+    }
+    FastLED.show();
+  }
+}
+
 void fadeToBlack()
 {
 
@@ -360,9 +390,7 @@ void fadeToBlack()
     {
       for (size_t k = 0; k < AMOUNT_SHELFS; k++)
       {
-        // leds[k][j] = parseColorString("#ff5511");
-        leds[k][j] = parseColorString("#965511");
-        // leds[k][j] = parseColorString("#0f0f0f");
+        leds[k][j] = parseColorString("#000000");
       }
     }
     FastLED.show();
@@ -404,7 +432,7 @@ void applyColorCategory()
 void applyMidiaColor()
 {
 
-  for (size_t i = 0; i <= 255; i+=5)
+  for (size_t i = 0; i <= 255; i += 5)
   {
     for (size_t j = 0; j < NUM_LEDS; j++)
     {
@@ -482,6 +510,13 @@ void handleColor()
   server.send(200, "application/json", response);
 }
 
+/**
+ * The function `handleProducts` processes product information and color data, responding with success
+ * messages or error messages accordingly.
+ *
+ * @return The function `handleProducts()` returns a JSON response with a message indicating the status
+ * of the operation.
+ */
 void handleProducts()
 {
 
@@ -493,7 +528,6 @@ void handleProducts()
   {
     Serial.println("Config mode is false");
     configModeActivate = false;
-    // fadetoBlack
     //  fadeToBlack();
     server.send(200, "application/json", response);
     return;
@@ -540,29 +574,20 @@ void handleProducts()
 
       for (size_t i = 0; i < produtosArray.size(); i++)
       {
-
         for (size_t j = 0; j < storegeProducts.size(); j++)
         {
           if (produtosArray[i].as<int>() == storegeProducts[j]["id"].as<int>())
           {
-            // Serial.println(storegeProducts[j]["name"].as<String>());
-            // Serial.println(storegeProducts[j]["id"].as<int>());
-
             productsColors[i] = parseColorString(storegeProducts[j]["value"].as<String>());
           }
         }
       }
-
-      // for(size_t i = 0; i < produtosArray.size(); i++) {
-      //   Serial.println(productsColors[i].r);
-      // }
     }
 
     midiaColor = parseColorString(color);
 
     currentState = POST_MIDIA_REQUEST_STATE;
 
-    // Send color to antoher function
     response = "{\"message\":\"success\"}";
     server.send(200, "application/json", response);
     return;
@@ -570,6 +595,33 @@ void handleProducts()
 
   response = "{\"message\":\"config mode is true\"}";
   server.send(200, "application/json", response);
+}
+
+void handleLightUpAllColors()
+{
+  CRGB defaultColor = getDefaultColor();
+
+  fadeToColor(defaultColor);
+
+  server.send(200, "application/json", "{\"message\":\"success\"}");
+
+  currentState = DEFAULT_STATE;
+}
+
+CRGB getDefaultColor()
+{
+  if (colorMode == "warm")
+  {
+    return parseColorString(defaultWarmColor.c_str());
+  }
+  else if (colorMode == "cold")
+  {
+    return parseColorString(defaultColdColor.c_str());
+  }
+  else
+  {
+    return parseColorString(defaultColdColor.c_str());
+  }
 }
 
 void handleConfig()
@@ -666,7 +718,7 @@ void handleTests()
   std::vector<int> colorArray = parseRGBString(color);
   CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
   fill_solid(leds[0], NUM_LEDS, currentColor);
-   fill_solid(leds[1], NUM_LEDS, currentColor);
+  fill_solid(leds[1], NUM_LEDS, currentColor);
 
   Serial.println();
 
@@ -959,49 +1011,21 @@ String read(String filename)
 }
 
 /**
- * The function parses a color string in hexadecimal format and returns a CRGB object with the
- * corresponding RGB values.
+ * The function `parseColorString` takes a hexadecimal color string, extracts the RGB values, and
+ * returns a CRGB object.
  *
- * @param colorString A string representing a color in hexadecimal format, starting with the '#'
- * character. For example, "#FF0000" represents the color red.
+ * @param colorString The `colorString` parameter is a string representing a color in hexadecimal
+ * format. It seems like the function expects the colorString to be in the format "#RRGGBB" where RR
+ * represents the red component, GG represents the green component, and BB represents the blue
+ * component. The function then parses
  *
- * @return a CRGB object, which represents a color in the RGB color space.
+ * @return The `parseColorString` function returns a CRGB object with the RGB values extracted from the
+ * input colorString.
  */
 CRGB parseColorString(String colorString)
 {
+  colorString.remove(0, 1);
 
-  // Serial.println(colorString);
-  // if (colorString == responseRedColor_UPPER)
-  //   colorString = redColor_LED_UPPER;
-  // else if (colorString == responseYellowColor_UPPER)
-  //   colorString = yellowColor_LED_UPPER;
-  // else if (colorString == responsePurpleColor_UPPER)
-  //   colorString = purpleColor_LED_UPPER;
-  // else if (colorString == responseOrangeColor_UPPER)
-  //   colorString = orangeColor_LED_UPPER;
-  // else if (colorString == responseGreenColor_UPPER)
-  //   colorString = greenColor_LED_UPPER;
-  // else if (colorString == responseBlueColor_UPPER)
-  //   colorString = blueColor_LED_UPPER;
-  // else
-  //   Serial.println("Cor inválida");
-
-  // Map<String, String> colorMapping = new HashMap<>();
-  // colorMapping.put(responseRedColor_UPPER, redColor_LED_UPPER);
-  // colorMapping.put(responseYellowColor_UPPER, yellowColor_LED_UPPER);
-  // colorMapping.put(responsePurpleColor_UPPER, purpleColor_LED_UPPER);
-  // colorMapping.put(responsePinkColor_UPPER, pinkColor_LED_UPPER);
-  // colorMapping.put(responseGreenColor_UPPER, greenColor_LED_UPPER);
-  // colorMapping.put(responseBlueColor_UPPER, blueColor_LED_UPPER);
-
-  // if (colorMapping.containsKey(colorString))
-  // {
-  //   colorString = colorMapping.get(colorString);
-  // }
-
-  colorString.remove(0, 1); // Remove the '#' character
-
-  // Extract individual color components
   int r = strtol(colorString.substring(0, 2).c_str(), NULL, 16);
   int g = strtol(colorString.substring(2, 4).c_str(), NULL, 16);
   int b = strtol(colorString.substring(4, 6).c_str(), NULL, 16);
@@ -1083,18 +1107,11 @@ void setLEDStripProperties()
   int delayColor = json["config"]["delay"].as<int>();
   interactDelay = json["config"]["interactDelay"].as<unsigned long>();
 
+  loadColorModeConfig(json);
+
   delayCategoryColor = delayColor;
 
   FastLED.setBrightness(brightness);
-  // Serial.println("\n[*] APPLYING...");
-
-  // Serial.print("[*] Amount of shelfs: ");
-  // Serial.println(amountOfShelfs);
-
-  // Serial.print("[*] Pixels: ");
-  // Serial.println(pixels);
-
-  // Serial.println("\n[*] Shelfs:");
 
   for (const auto &shelf : shelfs)
   {
@@ -1104,11 +1121,6 @@ void setLEDStripProperties()
 
     int segmentsNumber = shelf["segmentsNumber"].as<int>();
 
-    // USE_SERIAL.print("[*] Shelf: ");
-    // USE_SERIAL.print(shelfIndex + 1);
-    // USE_SERIAL.print(" [*] Segments: ");
-    // USE_SERIAL.println(segmentsNumber);
-
     int iIndex = 0;
 
     for (int i = 0; i < segmentsNumber; i++)
@@ -1116,50 +1128,16 @@ void setLEDStripProperties()
 
       String segmentColor = shelf["segments"][i]["color"].as<String>();
 
-      // if (segmentColor == responseRedColor)
-      //   segmentColor = redColor_LED;
-      // else if (segmentColor == responseYellowColor)
-      //   segmentColor = yellowColor_LED;
-      // else if (segmentColor == responsePurpleColor)
-      //   segmentColor = purpleColor_LED;
-      // else if (segmentColor == responseOrangeColor)
-      //   segmentColor = orangeColor_LED;
-      // else if (segmentColor == responseGreenColor)
-      //   segmentColor = greenColor_LED;
-      // else if (segmentColor == responseBlueColor)
-      //   segmentColor = blueColor_LED;
-      // else
-      //   Serial.println("Cor inválida");
-
-      // Map<String, String> colorMapping = new HashMap<>();
-      // colorMapping.put(responseRedColor, redColor_LED);
-      // colorMapping.put(responseYellowColor, yellowColor_LED);
-      // colorMapping.put(responsePurpleColor, purpleColor_LED);
-      // colorMapping.put(responsePinkColor, pinkColor_LED);
-      // colorMapping.put(responseGreenColor, greenColor_LED);
-      // colorMapping.put(responseBlueColor, blueColor_LED);
-
-      // if (colorMapping.containsKey(segmentColor))
-      // {
-      //   segmentColor = colorMapping.get(segmentColor);
-      // }
-
       int segmentSize;
-
-      // if segment number is 1, then segment size is equal to pixels value , else , to ...
 
       if (i == segmentsNumber - 1 && segmentsNumber > 1)
       {
-        // segmentSize = pixels - shelf["segments"][i - 1]["size"].as<int>(); // FIX last segment size
         segmentSize = pixels;
       }
       else
       {
         segmentSize = shelf["segments"][i]["size"].as<int>();
       }
-
-      // USE_SERIAL.print(" [*] Segment size: ");
-      // USE_SERIAL.println(segmentSize);
 
       for (int p = iIndex; p < segmentSize; p++)
       {
@@ -1174,6 +1152,13 @@ void setLEDStripProperties()
       }
     }
   }
+}
+
+void loadColorModeConfig(const DynamicJsonDocument &json)
+{
+  colorMode = json["config"]["colorMode"].as<std::string>();
+  defaultWarmColor = json["config"]["defaultWarmColor"].as<std::string>();
+  defaultColdColor = json["config"]["defaultColdColor"].as<std::string>();
 }
 
 /**
