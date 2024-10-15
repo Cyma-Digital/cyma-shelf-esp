@@ -21,83 +21,68 @@
 
 FASTLED_USING_NAMESPACE
 
-void stateMachine();
-void handleRoot();
-void changeColorCategory();
-void fadeIn(const CRGB &shelf, int brightness);
+// LED CONTROLLER
+void fadeInAllSegments(CRGB color);
+void fadeInAllSegmentsBasedOnCurrentMode();
+void clearLEDStripToApplyConfig(int shelfid);
+void setLEDStripProperties();
+
 void fadeOut(const CRGB &shelf, int brightness);
-CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
-void applyColorCategory();
-void applyMidiaColor();
-void waitColor();
+void fadeInSegment(CRGB &shelf, CRGB color);
+void fadeInSegmentBasedOnCurrentMode(CRGB &shelf, CRGB color);
+
+// NETWORK MANAGER
+void handleRoot();
+void handleConfig();
 void handleColor();
 void handleProducts();
 void handleLightUpAllColors();
-void handleInteract();
-void handleConfig();
-void fadeToColor(CRGB color);
-
-CRGB getDefaultColor();
-void loadColorModeConfig(const DynamicJsonDocument &json);
-
-void fadeToBlack();
-void handleTests();
-JsonArray getProducts();
-void handleConfigMode();
-bool compareColor(CRGB led, CRGB categoryColor);
-bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size);
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 void handleNotFound();
-void checkAndWriteToFile();
+void handleConfigMode();
+void handleInteract();
+void handleTests();
+
+// FILE MANAGER
 String read(String filename);
 void write(const ArduinoJson::JsonVariantConst &json);
-void setLEDStripProperties();
-void clearLEDStripToApplyConfig(int shelfid);
-CRGB parseColorString(String colorString);
 DynamicJsonDocument readFileAndConvertoArduinoJson(String filename);
-std::vector<int> parseRGBString(const std::string &rgbString);
-void dumpJsonArray(const JsonArray &jsonArray);
-void printRGB(CRGB rgb);
 
+void checkAndWriteToFile();
+
+// STATE MACHINE
+void stateMachine();
 const int DEFAULT_STATE = 1;
 const int POST_REQUEST_STATE = 12;
 const int SET_COLOR_STATE = 2;
 const int BACK_DEFAULT_STATE = 21;
 const int POST_MIDIA_REQUEST_STATE = 3;
+
+void applyColorCategory();
+void applyMidiaColor();
+void waitColor();
+
+// CONFIG MANAGER
+void loadColorModeConfig(const DynamicJsonDocument &json);
+
+std::string colorMode = "cold";
+std::string defaultColdColor = "#FFFFFF";
+std::string defaultWarmColor = "#965511";
+
+void changeColorCategory();
+CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
+
+CRGB getDefaultColor();
+
+JsonArray getProducts();
+bool compareColor(CRGB led, CRGB categoryColor);
+bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size);
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+CRGB parseColorString(String colorString);
+std::vector<int> parseRGBString(const std::string &rgbString);
+void dumpJsonArray(const JsonArray &jsonArray);
+void printRGB(CRGB rgb);
+
 int currentState;
-
-// enum class ColorMode
-// {
-//   Colors,
-//   Warm,
-//   Cold
-// };
-
-// std::string toString(ColorMode mode)
-// {
-//   switch (mode)
-//   {
-//   case ColorMode::Colors:
-//     return "colors";
-//   case ColorMode::Warm:
-//     return "warm";
-//   case ColorMode::Cold:
-//     return "cold";
-//   default:
-//     return "unknown";
-//   }
-// }
-
-// ColorMode fromString(const std::string &str)
-// {
-//   if (str == "colors")
-//     return ColorMode::Colors;
-//   if (str == "warm")
-//     return ColorMode::Warm;
-//   if (str == "cold")
-//     return ColorMode::Cold;
-//   throw std::invalid_argument("Unknown ColorMode: " + str);
-// }
 
 /* NETWORK CONFIGURATION */
 
@@ -142,11 +127,6 @@ size_t productsColorsSize = 0;
 bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
-
-// ColorMode colorMode = ColorMode::Cold;
-std::string colorMode = "cold";
-std::string defaultColdColor = "#FFFFFF";
-std::string defaultWarmColor = "#965511";
 
 // #define LED_PIN_1 2
 #define LED_PIN_1 13
@@ -359,12 +339,30 @@ void fadeOut(CRGB &shelf, int brightness)
   shelf.maximizeBrightness(255 - brightness);
 }
 
-void fadeIn(CRGB &shelf, int brightness)
+void fadeInSegment(CRGB &shelf, CRGB color)
 {
-  shelf.maximizeBrightness(0 + brightness);
+  shelf.r += shelf.r < color.r ? 5 : 0;
+  shelf.g += shelf.g < color.g ? 5 : 0;
+  shelf.b += shelf.b < color.b ? 5 : 0;
 }
 
-void fadeToColor(CRGB color)
+void fadeInSegmentBasedOnCurrentMode(CRGB &shelf, CRGB color)
+{
+  if (colorMode == "warm")
+  {
+    fadeInSegment(shelf, parseColorString(defaultWarmColor.c_str()));
+  }
+  else if (colorMode == "cold")
+  {
+    fadeInSegment(shelf, parseColorString(defaultColdColor.c_str()));
+  }
+  else
+  {
+    fadeInSegment(shelf, color);
+  }
+}
+
+void fadeInAllSegments(CRGB color)
 {
   for (size_t i = 0; i <= 255; i++)
   {
@@ -372,25 +370,22 @@ void fadeToColor(CRGB color)
     {
       for (size_t k = 0; k < AMOUNT_SHELFS; k++)
       {
-        leds[k][j].r += leds[k][j].r < color.r ? 5 : 0;
-        leds[k][j].g += leds[k][j].g < color.g ? 5 : 0;
-        leds[k][j].b += leds[k][j].b < color.b ? 5 : 0;
+        fadeInSegment(leds[k][j], color);
       }
     }
     FastLED.show();
   }
 }
 
-void fadeToBlack()
+void fadeInAllSegmentsBasedOnCurrentMode()
 {
-
   for (size_t i = 0; i <= 255; i++)
   {
     for (size_t j = 0; j < NUM_LEDS; j++)
     {
       for (size_t k = 0; k < AMOUNT_SHELFS; k++)
       {
-        leds[k][j] = parseColorString("#000000");
+        fadeInSegmentBasedOnCurrentMode(leds[k][j], refs[k][j]);
       }
     }
     FastLED.show();
@@ -409,16 +404,11 @@ void applyColorCategory()
       {
         if (compareColor(refs[k][j], categoryColor))
         {
-          // cor diferente
-          // leds[k][j] --;
           fadeOut(leds[k][j], i);
         }
         else
         {
-          // cor igual
-          leds[k][j].r += leds[k][j].r < refs[k][j].r ? 5 : 0;
-          leds[k][j].g += leds[k][j].g < refs[k][j].g ? 5 : 0;
-          leds[k][j].b += leds[k][j].b < refs[k][j].b ? 5 : 0;
+          fadeInSegmentBasedOnCurrentMode(leds[k][j], refs[k][j]);
         }
       }
     }
@@ -440,17 +430,12 @@ void applyMidiaColor()
       {
         if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
         {
-
-          leds[k][j].r += leds[k][j].r < midiaColor.r ? 5 : 0;
-          leds[k][j].g += leds[k][j].g < midiaColor.g ? 5 : 0;
-          leds[k][j].b += leds[k][j].b < midiaColor.b ? 5 : 0;
+          fadeInSegmentBasedOnCurrentMode(leds[k][j], midiaColor);
+          // fadeInSegment(leds[k][j], midiaColor);
         }
         else
         {
           fadeOut(leds[k][j], i);
-          // leds[k][j].r -= leds[k][j].r  == (255 - i) ? 1 : 0;
-          // leds[k][j].g -= leds[k][j].g  == (255 - i) ? 1 : 0;
-          // leds[k][j].b -= leds[k][j].b  == (255 - i) ? 1 : 0;
         }
       }
     }
@@ -528,7 +513,6 @@ void handleProducts()
   {
     Serial.println("Config mode is false");
     configModeActivate = false;
-    //  fadeToBlack();
     server.send(200, "application/json", response);
     return;
   }
@@ -601,7 +585,7 @@ void handleLightUpAllColors()
 {
   CRGB defaultColor = getDefaultColor();
 
-  fadeToColor(defaultColor);
+  fadeInAllSegments(defaultColor);
 
   server.send(200, "application/json", "{\"message\":\"success\"}");
 
@@ -777,7 +761,7 @@ void handleConfigMode()
   configModeActivate = tempJson["status"].as<boolean>();
   if (!configModeActivate)
   {
-    fadeToBlack();
+    fadeInAllSegmentsBasedOnCurrentMode();
     response = "{\"message\":\"config mode is false\"}";
     server.send(200, "application/json", response);
     return;
