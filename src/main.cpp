@@ -30,7 +30,6 @@ void clearAllStrips();
 void setLEDStripProperties();
 uint8_t getConfigBrightness();
 
-
 void fadeOut(const CRGB &shelf, int brightness);
 void fadeInSegment(CRGB &shelf, CRGB color);
 void fadeInSegmentBasedOnCurrentMode(CRGB &shelf, CRGB color);
@@ -68,6 +67,7 @@ void waitColor();
 
 // CONFIG MANAGER
 void loadColorModeConfig(const DynamicJsonDocument &json);
+bool shouldDeactivateConfigMode();
 
 std::string colorMode = "cold";
 std::string defaultColdColor = "#FFFFFF";
@@ -133,7 +133,7 @@ CRGB *productsColors = nullptr;
 size_t productsColorsSize = 0;
 bool configModeActivate = false;
 unsigned long interactDelay = 60000;
-unsigned long tsconfig; // timestamp config
+unsigned long lastInteractionTimestamp;
 
 #define LED_PIN_1 2
 // #define LED_PIN_1 13
@@ -157,9 +157,7 @@ WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
 #define NUM_LEDS 120
-// #define NUM_LEDS 10
 #define AMOUNT_SHELFS 8
-// #define AMOUNT_SHELFS 1
 
 CRGB leds1[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
@@ -228,11 +226,8 @@ void setup()
   else
   {
     Serial.println("\n[+] Connecting on WiFi network...");
-    // WiFi.begin("CymaDigital", "cyma102030");
-    // WiFi.begin("DisplayHNK-Net", "cyma102030");
-    // WiFi.begin("ABDOU-NET", "router2015");
-    // WiFi.begin("Dev", "cyma102030");
     WiFi.begin("CraftTouch-Control", "xUy!wajcw9");
+
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
@@ -294,18 +289,17 @@ void stateMachine()
   case POST_REQUEST_STATE:
     applyColorCategory();
     lastColor = millis();
+
     currentState = 2;
     break;
   case SET_COLOR_STATE:
     waitColor();
     break;
   case BACK_DEFAULT_STATE:
-    // setLEDStripProperties();
     clearStrip("exit_config_mode");
     currentState = DEFAULT_STATE;
     break;
   case POST_MIDIA_REQUEST_STATE:
-    // applyMidiaColor();
     clearStrip("products_fade");
     lastColor = millis();
     currentState = SET_COLOR_STATE;
@@ -454,6 +448,11 @@ void applyMidiaColor()
   }
 }
 
+bool shouldDeactivateConfigMode()
+{
+  return configModeActivate == true && lastInteractionTimestamp + interactDelay < millis();
+}
+
 void handleColor()
 {
 
@@ -462,7 +461,7 @@ void handleColor()
   USE_SERIAL.println(currentState);
   String response;
 
-  if (configModeActivate == true && tsconfig + interactDelay < millis())
+  if (shouldDeactivateConfigMode())
   {
     Serial.println("Config mode is false");
     configModeActivate = false;
@@ -520,7 +519,7 @@ void handleProducts()
 
   String response;
 
-  if (configModeActivate == true && tsconfig + interactDelay < millis())
+  if (shouldDeactivateConfigMode())
   {
     Serial.println("Config mode is false");
     configModeActivate = false;
@@ -712,11 +711,10 @@ void handleTests()
   uint8_t currentBrightness = getConfigBrightness();
 
   int step = getFadeStep(currentBrightness);
- 
 
   for (int i = currentBrightness; i >= 0; i -= step)
   {
-    
+
     FastLED.setBrightness(i);
     FastLED.show();
   }
@@ -795,17 +793,16 @@ void handleConfigMode()
   serializeJson(tempJson, Serial);
 
   configModeActivate = tempJson["status"].as<boolean>();
+
   if (!configModeActivate)
   {
-    // fadeInAllSegmentsBasedOnCurrentMode();
-    // fadeOut()
     clearStrip("exit_config_mode");
-    // fadeInAllSegmentsBasedOnCurrentMode();
     response = "{\"message\":\"config mode is false\"}";
     server.send(200, "application/json", response);
     return;
   }
-  Serial.println(configModeActivate);
+
+  lastInteractionTimestamp = millis();
 
   currentState = BACK_DEFAULT_STATE;
 
@@ -818,10 +815,11 @@ void handleInteract()
 {
   Serial.println("Handle Interact");
 
-  tsconfig = millis();
+  lastInteractionTimestamp = millis();
+  configModeActivate = true;
 
-  String response;
-  response = "{\"message\":\"" + String(tsconfig) + "\"}";
+  String response = "{\"message\":\"" + String(lastInteractionTimestamp) + "\"}";
+
   server.send(200, "application/json", response);
   return;
 }
@@ -829,7 +827,6 @@ void handleInteract()
 bool compareColor(CRGB led, CRGB categoriesColor)
 {
 
-  // USE_SERIAL.println(String("FadeLightBy") + " (" + String(led.r) + "," + String(led.g) + "," + String(led.b) + ")");
   if (led.r != categoriesColor.r || led.g != categoriesColor.g || led.b != categoriesColor.b)
   {
     return true;
@@ -932,14 +929,19 @@ void printRGB(CRGB rgb)
   Serial.print(") ");
 }
 
-int getFadeStep(uint8_t brightness) {
-    if (brightness >= 204) return 17;  // Nível mais alto, próximo a 255
-    else if (brightness >= 153) return 13;  // Nível alto
-    else if (brightness >= 102) return 10;  // Nível médio
-    else if (brightness >= 51) return 7;   // Nível baixo
-    else return 1;  // Nível mais baixo
+int getFadeStep(uint8_t brightness)
+{
+  if (brightness >= 204)
+    return 17; // Nível mais alto, próximo a 255
+  else if (brightness >= 153)
+    return 13; // Nível alto
+  else if (brightness >= 102)
+    return 10; // Nível médio
+  else if (brightness >= 51)
+    return 7; // Nível baixo
+  else
+    return 1; // Nível mais baixo
 }
-
 
 uint8_t getConfigBrightness()
 {
@@ -1269,7 +1271,8 @@ void clearLEDStripToApplyConfig(int shelfid)
   fill_solid(leds[shelfid], NUM_LEDS, CRGB::Black);
 }
 
-void clearAllStrips(){
+void clearAllStrips()
+{
   fill_solid(leds[0], NUM_LEDS, CRGB::Black);
   fill_solid(leds[1], NUM_LEDS, CRGB::Black);
   fill_solid(leds[2], NUM_LEDS, CRGB::Black);
@@ -1283,15 +1286,13 @@ void clearAllStrips(){
 void clearStrip(std::string mode)
 {
 
-
   uint8_t currentBrightness = getConfigBrightness();
-  CRGB defaultColor = getDefaultColor();  
+  CRGB defaultColor = getDefaultColor();
   int step = getFadeStep(currentBrightness);
- 
 
   for (int i = currentBrightness; i >= 0; i -= step)
   {
-    
+
     FastLED.setBrightness(i);
     FastLED.show();
   }
@@ -1299,20 +1300,19 @@ void clearStrip(std::string mode)
   FastLED.setBrightness(0);
   FastLED.show();
 
-
   clearAllStrips();
 
-
-  if (mode == "exit_config_mode"){
+  if (mode == "exit_config_mode")
+  {
     fadeInAllSegments(defaultColor);
     USE_SERIAL.println("exit_config_mode");
   }
 
-  if (mode == "products_fade"){
+  if (mode == "products_fade")
+  {
     applyMidiaColor();
     USE_SERIAL.println("products_fade");
   }
-  
 
   for (int i = 0; i <= currentBrightness; i += step)
   {
