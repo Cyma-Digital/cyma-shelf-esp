@@ -25,11 +25,16 @@ FASTLED_USING_NAMESPACE
 void fadeInAllSegments(CRGB color);
 void fadeInAllSegmentsBasedOnCurrentMode();
 void clearLEDStripToApplyConfig(int shelfid);
+void clearStrip(std::string mode);
+void clearAllStrips();
 void setLEDStripProperties();
+uint8_t getConfigBrightness();
+
 
 void fadeOut(const CRGB &shelf, int brightness);
 void fadeInSegment(CRGB &shelf, CRGB color);
 void fadeInSegmentBasedOnCurrentMode(CRGB &shelf, CRGB color);
+void fadeOutToIn();
 
 // NETWORK MANAGER
 void handleRoot();
@@ -80,6 +85,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 CRGB parseColorString(String colorString);
 std::vector<int> parseRGBString(const std::string &rgbString);
 void dumpJsonArray(const JsonArray &jsonArray);
+int getFadeStep(uint8_t brightness);
 void printRGB(CRGB rgb);
 
 int currentState;
@@ -99,9 +105,10 @@ int currentState;
 // IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
-IPAddress device_IP(192, 168, 15, 50);
+IPAddress device_IP(192, 168, 20, 50);
 
-IPAddress gateway(192, 168, 0, 1);
+// IPAddress gateway(192, 168, 0, 1);
+IPAddress gateway(192, 168, 20, 1);
 IPAddress subnet(255, 225, 255, 0);
 byte mac[] = {
     0x75, 0xD9, 0xAA, 0x39, 0x90, 0x37};
@@ -128,8 +135,8 @@ bool configModeActivate = false;
 unsigned long interactDelay = 60000;
 unsigned long tsconfig; // timestamp config
 
-// #define LED_PIN_1 2
-#define LED_PIN_1 13
+#define LED_PIN_1 2
+// #define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -149,7 +156,7 @@ WiFiClient client;
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(9090);
 
-#define NUM_LEDS 50
+#define NUM_LEDS 120
 // #define NUM_LEDS 10
 #define AMOUNT_SHELFS 8
 // #define AMOUNT_SHELFS 1
@@ -181,8 +188,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -196,9 +203,9 @@ void setup()
   fill_solid(leds[2], NUM_LEDS, CRGB::Black);
   fill_solid(leds[3], NUM_LEDS, CRGB::Black);
   fill_solid(leds[4], NUM_LEDS, CRGB::Black);
-  fill_solid(leds[5], NUM_LEDS, CRGB::Red);
-  fill_solid(leds[6], NUM_LEDS, CRGB::Red);
-  fill_solid(leds[7], NUM_LEDS, CRGB::Red);
+  fill_solid(leds[5], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[6], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[7], NUM_LEDS, CRGB::Black);
 
   FastLED.setBrightness(255);
 
@@ -223,7 +230,9 @@ void setup()
     Serial.println("\n[+] Connecting on WiFi network...");
     // WiFi.begin("CymaDigital", "cyma102030");
     // WiFi.begin("DisplayHNK-Net", "cyma102030");
-    WiFi.begin("ABDOU-NET", "router2015");
+    // WiFi.begin("ABDOU-NET", "router2015");
+    // WiFi.begin("Dev", "cyma102030");
+    WiFi.begin("CraftTouch-Control", "xUy!wajcw9");
     while (WiFi.status() != WL_CONNECTED)
     {
       USE_SERIAL.print(".");
@@ -261,7 +270,7 @@ void setup()
   currentState = BACK_DEFAULT_STATE;
   USE_SERIAL.print("Current State: ");
   USE_SERIAL.println(currentState);
-  // setLEDStripProperties();
+  setLEDStripProperties();
 }
 
 void loop()
@@ -291,13 +300,15 @@ void stateMachine()
     waitColor();
     break;
   case BACK_DEFAULT_STATE:
-    setLEDStripProperties();
+    // setLEDStripProperties();
+    clearStrip("exit_config_mode");
     currentState = DEFAULT_STATE;
     break;
   case POST_MIDIA_REQUEST_STATE:
-    applyMidiaColor();
+    // applyMidiaColor();
+    clearStrip("products_fade");
     lastColor = millis();
-    // currentState = 2;
+    currentState = SET_COLOR_STATE;
   default:
     break;
   }
@@ -373,7 +384,7 @@ void fadeInAllSegments(CRGB color)
         fadeInSegment(leds[k][j], color);
       }
     }
-    FastLED.show();
+    // FastLED.show();
   }
 }
 
@@ -439,7 +450,7 @@ void applyMidiaColor()
         }
       }
     }
-    FastLED.show();
+    // FastLED.show();
   }
 }
 
@@ -582,7 +593,10 @@ void handleProducts()
 }
 
 void handleLightUpAllColors()
+
 {
+
+  clearStrip("exit_config_mode");
   CRGB defaultColor = getDefaultColor();
 
   fadeInAllSegments(defaultColor);
@@ -695,14 +709,36 @@ void handleTests()
     return;
   }
 
-  serializeJson(tempJson, Serial);
+  uint8_t currentBrightness = getConfigBrightness();
 
-  std::string color = tempJson["color"].as<std::string>();
+  int step = getFadeStep(currentBrightness);
+ 
 
-  std::vector<int> colorArray = parseRGBString(color);
-  CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
-  fill_solid(leds[0], NUM_LEDS, currentColor);
-  fill_solid(leds[1], NUM_LEDS, currentColor);
+  for (int i = currentBrightness; i >= 0; i -= step)
+  {
+    
+    FastLED.setBrightness(i);
+    FastLED.show();
+  }
+
+  FastLED.setBrightness(0);
+  FastLED.show();
+
+  delay(2000);
+  for (int i = 0; i <= currentBrightness; i += step)
+  {
+    FastLED.setBrightness(i);
+    FastLED.show();
+  }
+
+  // serializeJson(tempJson, Serial);
+
+  // std::string color = tempJson["color"].as<std::string>();
+
+  // std::vector<int> colorArray = parseRGBString(color);
+  // CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
+  // fill_solid(leds[0], NUM_LEDS, currentColor);
+  // fill_solid(leds[1], NUM_LEDS, currentColor);
 
   Serial.println();
 
@@ -761,7 +797,10 @@ void handleConfigMode()
   configModeActivate = tempJson["status"].as<boolean>();
   if (!configModeActivate)
   {
-    fadeInAllSegmentsBasedOnCurrentMode();
+    // fadeInAllSegmentsBasedOnCurrentMode();
+    // fadeOut()
+    clearStrip("exit_config_mode");
+    // fadeInAllSegmentsBasedOnCurrentMode();
     response = "{\"message\":\"config mode is false\"}";
     server.send(200, "application/json", response);
     return;
@@ -891,6 +930,35 @@ void printRGB(CRGB rgb)
   Serial.print(",");
   Serial.print(rgb.b);
   Serial.print(") ");
+}
+
+int getFadeStep(uint8_t brightness) {
+    if (brightness >= 204) return 17;  // Nível mais alto, próximo a 255
+    else if (brightness >= 153) return 13;  // Nível alto
+    else if (brightness >= 102) return 10;  // Nível médio
+    else if (brightness >= 51) return 7;   // Nível baixo
+    else return 1;  // Nível mais baixo
+}
+
+
+uint8_t getConfigBrightness()
+{
+  DynamicJsonDocument json(4048);
+
+  String dataFile = read("/data.txt");
+
+  DeserializationError error = deserializeJson(json, dataFile);
+
+  if (error)
+  {
+    Serial.print("Deserialization error: ");
+    Serial.println(error.c_str());
+    return 255;
+  }
+
+  uint8_t brightness = json["config"]["brightness"].as<uint8_t>();
+
+  return brightness;
 }
 
 /**
@@ -1199,6 +1267,58 @@ void write(const ArduinoJson::JsonVariantConst &json)
 void clearLEDStripToApplyConfig(int shelfid)
 {
   fill_solid(leds[shelfid], NUM_LEDS, CRGB::Black);
+}
+
+void clearAllStrips(){
+  fill_solid(leds[0], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[1], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[2], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[3], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[4], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[5], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[6], NUM_LEDS, CRGB::Black);
+  fill_solid(leds[7], NUM_LEDS, CRGB::Black);
+}
+
+void clearStrip(std::string mode)
+{
+
+
+  uint8_t currentBrightness = getConfigBrightness();
+  CRGB defaultColor = getDefaultColor();  
+  int step = getFadeStep(currentBrightness);
+ 
+
+  for (int i = currentBrightness; i >= 0; i -= step)
+  {
+    
+    FastLED.setBrightness(i);
+    FastLED.show();
+  }
+
+  FastLED.setBrightness(0);
+  FastLED.show();
+
+
+  clearAllStrips();
+
+
+  if (mode == "exit_config_mode"){
+    fadeInAllSegments(defaultColor);
+    USE_SERIAL.println("exit_config_mode");
+  }
+
+  if (mode == "products_fade"){
+    applyMidiaColor();
+    USE_SERIAL.println("products_fade");
+  }
+  
+
+  for (int i = 0; i <= currentBrightness; i += step)
+  {
+    FastLED.setBrightness(i);
+    FastLED.show();
+  }
 }
 
 /**
