@@ -289,7 +289,6 @@ void stateMachine()
   case POST_REQUEST_STATE:
     applyColorCategory();
     lastColor = millis();
-
     currentState = 2;
     break;
   case SET_COLOR_STATE:
@@ -803,8 +802,10 @@ void handleConfigMode()
   }
 
   lastInteractionTimestamp = millis();
+  clearStrip("config_mode");
+  // currentState = BACK_DEFAULT_STATE;
+  // setLEDStripProperties();
 
-  currentState = BACK_DEFAULT_STATE;
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
@@ -1313,6 +1314,12 @@ void clearStrip(std::string mode)
     applyMidiaColor();
     USE_SERIAL.println("products_fade");
   }
+
+  if (mode == "config_mode"){
+    setLEDStripProperties();
+  }
+
+
 
   for (int i = 0; i <= currentBrightness; i += step)
   {
