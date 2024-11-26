@@ -301,7 +301,7 @@ void stateMachine()
   case POST_MIDIA_REQUEST_STATE:
     clearStrip("products_fade");
     lastColor = millis();
-    currentState = SET_COLOR_STATE;
+    currentState = DEFAULT_STATE;
   default:
     break;
   }
@@ -594,14 +594,31 @@ void handleLightUpAllColors()
 
 {
 
-  clearStrip("exit_config_mode");
-  CRGB defaultColor = getDefaultColor();
+  String response;
+  if (shouldDeactivateConfigMode())
+  {
+    Serial.println("Config mode is false");
+    configModeActivate = false;
+    server.send(200, "application/json", response);
+    return;
+  }
 
-  fadeInAllSegments(defaultColor);
 
-  server.send(200, "application/json", "{\"message\":\"success\"}");
+  if (configModeActivate == false) {
+    clearStrip("exit_config_mode");
+    CRGB defaultColor = getDefaultColor();
 
-  currentState = DEFAULT_STATE;
+    fadeInAllSegments(defaultColor);
+
+    server.send(200, "application/json", "{\"message\":\"success\"}");
+
+    currentState = DEFAULT_STATE;
+  }
+
+  response = "{\"message\":\"config mode is true\"}";
+  server.send(200, "application/json", response);
+
+
 }
 
 CRGB getDefaultColor()
