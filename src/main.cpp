@@ -66,12 +66,25 @@ void applyMidiaColor();
 void waitColor();
 
 // CONFIG MANAGER
-void loadColorModeConfig(const DynamicJsonDocument &json);
-bool shouldDeactivateConfigMode();
-
+bool configModeActivate = false;
+unsigned long interactDelay = 60000;
+unsigned long lastInteractionTimestamp;
 std::string colorMode = "cold";
 std::string defaultColdColor = "#FFFFFF";
 std::string defaultWarmColor = "#965511";
+
+void loadColorModeConfig(const DynamicJsonDocument &json);
+bool shouldDeactivateConfigMode();
+
+// ACTIVE CLIENT MANAGER
+String activeClientId;
+unsigned long clientInteractionDelay = 5000;
+unsigned long lastActiveClientInteractionTimestamp;
+
+bool handleActiveClient(const String &displayId, String &response);
+bool hasActiveClient();
+bool isActiveClient(const String &clientId);
+bool isActiveClientTimeOver();
 
 void changeColorCategory();
 CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
@@ -123,7 +136,7 @@ const char *password = NULL;
 #define CONNECTION_MODE "noWiFi"
 
 /* LED CONTROLLER CONFIGURATION */
-const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":11,\"title\":\"Gondola Ambev\",\"colorMode\":\"warm\",\"defaultWarmColor\":\"#965511\",\"defaultColdColor\":\"#FFFFFF\",\"pixelCentimeters\":5,\"brightness\":255,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":5,\"segments\":[{\"segmentIndex\":0,\"size\":1,\"realSize\":1,\"product\":6,\"color\":\"#ffffff\"},{\"segmentIndex\":1,\"size\":2,\"realSize\":1,\"product\":5,\"color\":\"#ff0000\"},{\"segmentIndex\":2,\"size\":4,\"realSize\":2,\"product\":1,\"color\":\"#00ff00\"},{\"segmentIndex\":3,\"size\":7,\"realSize\":3,\"product\":3,\"color\":\"#ffff00\"},{\"segmentIndex\":4,\"size\":10,\"realSize\":3,\"product\":2,\"color\":\"#ff0000\"}]}]}";
+const char *jsonString = "{\"config\":{\"shelfs\":1,\"pixels\":11,\"title\":\"Gondola Ambev\",\"colorMode\":\"warm\",\"defaultWarmColor\":\"#965511\",\"defaultColdColor\":\"#FFFFFF\",\"pixelCentimeters\":5,\"brightness\":255,\"id\":null,\"delay\":10000,\"interactDelay\":60000,\"clientInteractionDelay\":5000,\"products\":[{\"name\":\"SPATEN\",\"id\":1,\"value\":\"#00ff00\"},{\"name\":\"BRAHMACHOPP\",\"id\":2,\"value\":\"#ff0000\"},{\"name\":\"CORONAEXTRA\",\"id\":3,\"value\":\"#ffff00\"},{\"name\":\"BECKS\",\"id\":4,\"value\":\"#00ff00\"},{\"name\":\"BUDWEISER\",\"id\":5,\"value\":\"#ff0000\"},{\"name\":\"STELLAARTOIS\",\"id\":6,\"value\":\"#ffffff\"}]},\"shelfs\":[{\"shelfIndex\":0,\"segmentsNumber\":5,\"segments\":[{\"segmentIndex\":0,\"size\":1,\"realSize\":1,\"product\":6,\"color\":\"#ffffff\"},{\"segmentIndex\":1,\"size\":2,\"realSize\":1,\"product\":5,\"color\":\"#ff0000\"},{\"segmentIndex\":2,\"size\":4,\"realSize\":2,\"product\":1,\"color\":\"#00ff00\"},{\"segmentIndex\":3,\"size\":7,\"realSize\":3,\"product\":3,\"color\":\"#ffff00\"},{\"segmentIndex\":4,\"size\":10,\"realSize\":3,\"product\":2,\"color\":\"#ff0000\"}]}]}";
 
 CRGB categoryColor;
 CRGB midiaColor;
@@ -131,9 +144,6 @@ int delayCategoryColor;
 int lastColor = 0;
 CRGB *productsColors = nullptr;
 size_t productsColorsSize = 0;
-bool configModeActivate = false;
-unsigned long interactDelay = 60000;
-unsigned long lastInteractionTimestamp;
 
 #define LED_PIN_1 2
 // #define LED_PIN_1 13
@@ -447,11 +457,6 @@ void applyMidiaColor()
   }
 }
 
-bool shouldDeactivateConfigMode()
-{
-  return configModeActivate == true && lastInteractionTimestamp + interactDelay < millis();
-}
-
 void handleColor()
 {
 
@@ -513,30 +518,27 @@ void handleColor()
  */
 void handleProducts()
 {
-
   Serial.println("Handle Products");
 
   String response;
 
   if (shouldDeactivateConfigMode())
   {
-    Serial.println("Config mode is false");
+    Serial.println("Config mode setted to false");
     configModeActivate = false;
     server.send(200, "application/json", response);
     return;
   }
 
-  if (configModeActivate == false)
+  if (!configModeActivate)
   {
-
     String request_body;
-
     DynamicJsonDocument tempJson(4048);
 
     if (server.hasArg("plain") == false)
     {
       response = "{\"message\":\"empty body\"}";
-      server.send(200, "application/json", response);
+      server.send(400, "application/json", response);
       return;
     }
 
@@ -545,14 +547,20 @@ void handleProducts()
     DeserializationError error = deserializeJson(tempJson, request_body);
     if (error)
     {
-      Serial.print("Error: ");
       Serial.println(error.c_str());
       response = "{\"message\":\"" + String(error.c_str()) + "\"}";
       server.send(500, "application/json", response);
     }
 
     serializeJson(tempJson, Serial);
-    Serial.println();
+
+    String displayId = tempJson["display_id"].as<String>();
+
+    if (!handleActiveClient(displayId, response))
+    {
+      server.send(200, "application/json", response);
+      return;
+    }
 
     String color = tempJson["cor"].as<String>();
 
@@ -563,15 +571,15 @@ void handleProducts()
       productsColors = new CRGB[produtosArray.size()];
       productsColorsSize = produtosArray.size();
 
-      JsonArray storegeProducts = getProducts();
+      JsonArray storedProducts = getProducts();
 
       for (size_t i = 0; i < produtosArray.size(); i++)
       {
-        for (size_t j = 0; j < storegeProducts.size(); j++)
+        for (size_t j = 0; j < storedProducts.size(); j++)
         {
-          if (produtosArray[i].as<int>() == storegeProducts[j]["id"].as<int>())
+          if (produtosArray[i].as<int>() == storedProducts[j]["id"].as<int>())
           {
-            productsColors[i] = parseColorString(storegeProducts[j]["value"].as<String>());
+            productsColors[i] = parseColorString(storedProducts[j]["value"].as<String>());
           }
         }
       }
@@ -590,8 +598,50 @@ void handleProducts()
   server.send(200, "application/json", response);
 }
 
-void handleLightUpAllColors()
+bool shouldDeactivateConfigMode()
+{
+  return configModeActivate == true && lastInteractionTimestamp + interactDelay < millis();
+}
 
+bool handleActiveClient(const String &displayId, String &response)
+{
+
+  if (!hasActiveClient() || isActiveClientTimeOver())
+  {
+    Serial.println("No active client or time over");
+    activeClientId = displayId;
+    lastActiveClientInteractionTimestamp = millis();
+  }
+  else if (isActiveClient(displayId))
+  {
+    Serial.println("Same Client");
+    lastActiveClientInteractionTimestamp = millis();
+  }
+  else
+  {
+    Serial.println("Display " + activeClientId + " is using the lighting effects.");
+    response = R"({"message":"Outro cliente está usando os efeitos de iluminação."})";
+    return false;
+  }
+  return true;
+}
+
+bool hasActiveClient()
+{
+  return !!activeClientId.length();
+}
+
+bool isActiveClient(const String &clientId)
+{
+  return activeClientId == clientId;
+}
+
+bool isActiveClientTimeOver()
+{
+  return lastActiveClientInteractionTimestamp + clientInteractionDelay < millis();
+}
+
+void handleLightUpAllColors()
 {
 
   String response;
@@ -603,8 +653,38 @@ void handleLightUpAllColors()
     return;
   }
 
+  if (!configModeActivate)
+  {
+    String request_body;
+    DynamicJsonDocument tempJson(4048);
 
-  if (configModeActivate == false) {
+    if (server.hasArg("plain") == false)
+    {
+      response = "{\"message\":\"empty body\"}";
+      server.send(400, "application/json", response);
+      return;
+    }
+
+    request_body = server.arg("plain");
+
+    DeserializationError error = deserializeJson(tempJson, request_body);
+    if (error)
+    {
+      Serial.println(error.c_str());
+      response = "{\"message\":\"" + String(error.c_str()) + "\"}";
+      server.send(500, "application/json", response);
+    }
+
+    serializeJson(tempJson, Serial);
+
+    String displayId = tempJson["display_id"].as<String>();
+
+    if (!handleActiveClient(displayId, response))
+    {
+      server.send(200, "application/json", response);
+      return;
+    }
+
     clearStrip("exit_config_mode");
     CRGB defaultColor = getDefaultColor();
 
@@ -617,8 +697,6 @@ void handleLightUpAllColors()
 
   response = "{\"message\":\"config mode is true\"}";
   server.send(200, "application/json", response);
-
-
 }
 
 CRGB getDefaultColor()
@@ -822,7 +900,6 @@ void handleConfigMode()
   clearStrip("config_mode");
   // currentState = BACK_DEFAULT_STATE;
   // setLEDStripProperties();
-
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
@@ -1179,6 +1256,8 @@ void setLEDStripProperties()
   int delayColor = json["config"]["delay"].as<int>();
   interactDelay = json["config"]["interactDelay"].as<unsigned long>();
 
+  clientInteractionDelay = json["config"]["clientInteractionDelay"].as<unsigned long>();
+
   loadColorModeConfig(json);
 
   delayCategoryColor = delayColor;
@@ -1332,11 +1411,10 @@ void clearStrip(std::string mode)
     USE_SERIAL.println("products_fade");
   }
 
-  if (mode == "config_mode"){
+  if (mode == "config_mode")
+  {
     setLEDStripProperties();
   }
-
-
 
   for (int i = 0; i <= currentBrightness; i += step)
   {
