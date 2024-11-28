@@ -127,8 +127,7 @@ int currentState;
 // IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
-// IPAddress device_IP(192, 168, 20, 50);
-IPAddress device_IP(192, 168, 20, 60);
+IPAddress device_IP(192, 168, 20, 50);
 
 // IPAddress gateway(192, 168, 0, 1);
 IPAddress gateway(192, 168, 20, 1);
@@ -155,8 +154,8 @@ int lastColor = 0;
 CRGB *productsColors = nullptr;
 size_t productsColorsSize = 0;
 
-// #define LED_PIN_1 2
-#define LED_PIN_1 13
+#define LED_PIN_1 2
+// #define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -206,8 +205,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
