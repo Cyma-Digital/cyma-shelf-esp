@@ -86,6 +86,13 @@ bool hasActiveClient();
 bool isActiveClient(const String &clientId);
 bool isActiveClientTimeOver();
 
+// ACTIVE SEGMENTS MANAGER
+CRGB *activeSegments = nullptr;
+int activeSegmentsQuantity = 0;
+
+bool isSegmentActive(CRGB &segment);
+bool areSegmentsArraysDifferent();
+
 void changeColorCategory();
 CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
 
@@ -100,6 +107,8 @@ std::vector<int> parseRGBString(const std::string &rgbString);
 void dumpJsonArray(const JsonArray &jsonArray);
 int getFadeStep(uint8_t brightness);
 void printRGB(CRGB rgb);
+
+void printArray(const CRGB *arr, size_t size);
 
 int currentState;
 
@@ -118,7 +127,8 @@ int currentState;
 // IPAddress device_IP(192,168, 0, 40);
 
 // esp@192.168.0.50
-IPAddress device_IP(192, 168, 20, 50);
+// IPAddress device_IP(192, 168, 20, 50);
+IPAddress device_IP(192, 168, 20, 60);
 
 // IPAddress gateway(192, 168, 0, 1);
 IPAddress gateway(192, 168, 20, 1);
@@ -145,8 +155,8 @@ int lastColor = 0;
 CRGB *productsColors = nullptr;
 size_t productsColorsSize = 0;
 
-#define LED_PIN_1 2
-// #define LED_PIN_1 13
+// #define LED_PIN_1 2
+#define LED_PIN_1 13
 #define LED_PIN_2 4
 #define LED_PIN_3 12
 #define LED_PIN_4 14
@@ -196,8 +206,8 @@ void setup()
 
   pinMode(5, OUTPUT);
 
-  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  // FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -237,6 +247,7 @@ void setup()
   {
     Serial.println("\n[+] Connecting on WiFi network...");
     WiFi.begin("CraftTouch-Control", "xUy!wajcw9");
+    // WiFi.begin("ABDOU-NET", "router2015");
 
     while (WiFi.status() != WL_CONNECTED)
     {
@@ -442,10 +453,13 @@ void applyMidiaColor()
     {
       for (size_t k = 0; k < AMOUNT_SHELFS; k++)
       {
-        if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
+        if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize) && isSegmentActive(refs[k][j]))
+        {
+          continue;
+        }
+        else if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
         {
           fadeInSegmentBasedOnCurrentMode(leds[k][j], midiaColor);
-          // fadeInSegment(leds[k][j], midiaColor);
         }
         else
         {
@@ -509,6 +523,28 @@ void handleColor()
   server.send(200, "application/json", response);
 }
 
+void printArray(const CRGB *arr, size_t size)
+{
+  Serial.print("[");
+  for (size_t i = 0; i < size; ++i)
+  {
+    // Supondo que CRGB tem r, g, b como atributos
+    Serial.print("{");
+    Serial.print("r: ");
+    Serial.print(arr[i].r);
+    Serial.print(", g: ");
+    Serial.print(arr[i].g);
+    Serial.print(", b: ");
+    Serial.print(arr[i].b);
+    Serial.print("}");
+    if (i < size - 1)
+    {
+      Serial.print(", "); // Vírgula entre elementos
+    }
+  }
+  Serial.println("]");
+}
+
 /**
  * The function `handleProducts` processes product information and color data, responding with success
  * messages or error messages accordingly.
@@ -566,6 +602,13 @@ void handleProducts()
 
     if (tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>())
     {
+
+      activeSegments = productsColors;
+      activeSegmentsQuantity = productsColorsSize;
+
+      Serial.println("PRODUTOS ATUAIS");
+      printArray(activeSegments, activeSegmentsQuantity);
+
       JsonArray produtosArray = tempJson["produtos"].as<JsonArray>();
 
       productsColors = new CRGB[produtosArray.size()];
@@ -583,6 +626,9 @@ void handleProducts()
           }
         }
       }
+
+      Serial.println("PRODUTOS NOVOS");
+      printArray(productsColors, productsColorsSize);
     }
 
     midiaColor = parseColorString(color);
@@ -937,6 +983,44 @@ bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size)
   {
 
     if (led.r == categoriesColor[x].r && led.g == categoriesColor[x].g && led.b == categoriesColor[x].b)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool isSegmentActive(CRGB &segment)
+{
+  if (activeSegments == nullptr || activeSegmentsQuantity == 0)
+  {
+    return false;
+  }
+
+  for (int i = 0; i < activeSegmentsQuantity; i++)
+  {
+    const CRGB &currActiveSegment = activeSegments[i];
+
+    if (segment.r == currActiveSegment.r && segment.g == currActiveSegment.g && segment.b == currActiveSegment.b)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool areSegmentsArraysDifferent()
+{
+  if (activeSegmentsQuantity != productsColorsSize)
+  {
+    return true;
+  }
+
+  for (int i = 0; i < activeSegmentsQuantity; i++)
+  {
+    if (activeSegments[i].r != productsColors[i].r || activeSegments[i].g != productsColors[i].g || activeSegments[i].b != productsColors[i].b)
     {
       return true;
     }
@@ -1383,43 +1467,106 @@ void clearAllStrips()
 void clearStrip(std::string mode)
 {
 
-  uint8_t currentBrightness = getConfigBrightness();
-  CRGB defaultColor = getDefaultColor();
-  int step = getFadeStep(currentBrightness);
+  // uint8_t currentBrightness = getConfigBrightness();
+  // CRGB defaultColor = getDefaultColor();
+  // int step = getFadeStep(currentBrightness);
 
-  for (int i = currentBrightness; i >= 0; i -= step)
-  {
+  // for (int i = currentBrightness; i >= 0; i -= step)
+  // {
 
-    FastLED.setBrightness(i);
-    FastLED.show();
-  }
+  //   FastLED.setBrightness(i);
+  //   FastLED.show();
+  // }
 
-  FastLED.setBrightness(0);
-  FastLED.show();
-
-  clearAllStrips();
+  // FastLED.setBrightness(0);
+  // FastLED.show();
 
   if (mode == "exit_config_mode")
   {
+    uint8_t currentBrightness = getConfigBrightness();
+    CRGB defaultColor = getDefaultColor();
+    int step = getFadeStep(currentBrightness);
+
+    for (int i = currentBrightness; i >= 0; i -= step)
+    {
+
+      FastLED.setBrightness(i);
+      FastLED.show();
+    }
+
+    FastLED.setBrightness(0);
+    FastLED.show();
+
+    clearAllStrips();
     fadeInAllSegments(defaultColor);
     USE_SERIAL.println("exit_config_mode");
+
+    for (int i = 0; i <= currentBrightness; i += step)
+    {
+      FastLED.setBrightness(i);
+      FastLED.show();
+    }
   }
 
   if (mode == "products_fade")
   {
-    applyMidiaColor();
-    USE_SERIAL.println("products_fade");
+    if (areSegmentsArraysDifferent())
+    {
+      uint8_t currentBrightness = getConfigBrightness();
+      CRGB defaultColor = getDefaultColor();
+      int step = getFadeStep(currentBrightness);
+
+      for (int i = currentBrightness; i >= 0; i -= step)
+      {
+
+        FastLED.setBrightness(i);
+        FastLED.show();
+      }
+
+      FastLED.setBrightness(0);
+      FastLED.show();
+
+      applyMidiaColor();
+      USE_SERIAL.println("products_fade");
+
+      for (int i = 0; i <= currentBrightness; i += step)
+      {
+        FastLED.setBrightness(i);
+        FastLED.show();
+      }
+    }
+    else
+    {
+      applyMidiaColor();
+      USE_SERIAL.println("products_fade");
+    }
   }
 
   if (mode == "config_mode")
   {
-    setLEDStripProperties();
-  }
+    uint8_t currentBrightness = getConfigBrightness();
+    CRGB defaultColor = getDefaultColor();
+    int step = getFadeStep(currentBrightness);
 
-  for (int i = 0; i <= currentBrightness; i += step)
-  {
-    FastLED.setBrightness(i);
+    for (int i = currentBrightness; i >= 0; i -= step)
+    {
+
+      FastLED.setBrightness(i);
+      FastLED.show();
+    }
+
+    FastLED.setBrightness(0);
     FastLED.show();
+
+    clearAllStrips();
+    USE_SERIAL.println("config_mode");
+    setLEDStripProperties();
+
+    for (int i = 0; i <= currentBrightness; i += step)
+    {
+      FastLED.setBrightness(i);
+      FastLED.show();
+    }
   }
 }
 
