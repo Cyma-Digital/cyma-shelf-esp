@@ -126,19 +126,7 @@ int currentState;
 
 /* NETWORK CONFIGURATION */
 
-// esp@192.168.0.10
-// IPAddress device_IP(192, 168, 0, 10);
-
-// esp@192.168.0.20
-// IPAddress device_IP(192,168, 0, 20);
-
-// esp@192.168.0.30
-// IPAddress device_IP(192, 168, 0, 30);
-
-// esp@192.168.0.40
-// IPAddress device_IP(192,168, 0, 40);
-
-// esp@192.168.0.50
+// esp@192.168.20.50
 IPAddress device_IP(192, 168, 20, 50);
 
 // IPAddress gateway(192, 168, 0, 1);
@@ -409,7 +397,6 @@ void fadeInAllSegments(CRGB color)
         fadeInSegment(leds[k][j], color);
       }
     }
-    // FastLED.show();
   }
 }
 
@@ -478,7 +465,6 @@ void applyMidiaColor()
         }
       }
     }
-    // FastLED.show();
   }
 }
 
@@ -902,15 +888,6 @@ void handleTests()
   String response;
   String request_body;
 
-  // JsonArray products;
-
-  // products = getProducts();
-
-  // for(size_t i = 0; i < products.size(); i++) {
-  //   Serial.println(products[i]["name"].as<String>());
-  //   Serial.println(products[i]["id"].as<int>());
-  // }
-
   DynamicJsonDocument tempJson(2048);
 
   if (server.hasArg("plain") == false)
@@ -949,15 +926,6 @@ void handleTests()
     FastLED.setBrightness(i);
     FastLED.show();
   }
-
-  // serializeJson(tempJson, Serial);
-
-  // std::string color = tempJson["color"].as<std::string>();
-
-  // std::vector<int> colorArray = parseRGBString(color);
-  // CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
-  // fill_solid(leds[0], NUM_LEDS, currentColor);
-  // fill_solid(leds[1], NUM_LEDS, currentColor);
 
   Serial.println();
 
@@ -1025,8 +993,6 @@ void handleConfigMode()
 
   lastInteractionTimestamp = millis();
   clearStrip("config_mode");
-  // currentState = BACK_DEFAULT_STATE;
-  // setLEDStripProperties();
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
@@ -1092,8 +1058,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     IPAddress ip = webSocket.remoteIP(num);
     USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 
-    // Send data to Front
-
     size_t len;
     DynamicJsonDocument data(4048);
 
@@ -1101,7 +1065,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 
     DeserializationError error = deserializeJson(data, dataFile);
 
-    // Check for any errors during deserialization
     if (error)
     {
       Serial.print("Deserialization error: ");
@@ -1131,7 +1094,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     }
 
     write(json);
-    // delay(1000);
     setLEDStripProperties();
   }
   break;
@@ -1610,13 +1572,11 @@ std::vector<int> parseRGBString(const std::string &rgbString)
     {
       try
       {
-        // Convert the token to an integer and add it to the vector
         int value = std::stoi(token);
         rgbValues.push_back(value);
       }
       catch (const std::invalid_argument &e)
       {
-        // Handle invalid arguments (non-integer values)
         std::cerr << "Invalid RGB value: " << token << std::endl;
       }
     }
