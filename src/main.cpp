@@ -25,7 +25,10 @@ FASTLED_USING_NAMESPACE
 void fadeInAllSegments(CRGB color);
 void fadeInAllSegmentsBasedOnCurrentMode();
 void clearLEDStripToApplyConfig(int shelfid);
+
 void clearStrip(std::string mode);
+boolean needsFade(const std::string mode);
+
 void clearAllStrips();
 void setLEDStripProperties();
 uint8_t getConfigBrightness();
@@ -33,7 +36,9 @@ uint8_t getConfigBrightness();
 void fadeOut(const CRGB &shelf, int brightness);
 void fadeInSegment(CRGB &shelf, CRGB color);
 void fadeInSegmentBasedOnCurrentMode(CRGB &shelf, CRGB color);
-void fadeOutToIn();
+
+void brightnessFadeOut();
+void brightnessFadeIn();
 
 // NETWORK MANAGER
 void handleRoot();
@@ -98,9 +103,16 @@ CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
 
 CRGB getDefaultColor();
 
+// CATEGORIES MANAGER
 JsonArray getProducts();
+
 bool compareColor(CRGB led, CRGB categoryColor);
 bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size);
+
+void processProducts(const JsonArray &products);
+void allocateProductsColors(size_t size);
+void matchProductsColors(const JsonArray &products);
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 CRGB parseColorString(String colorString);
 std::vector<int> parseRGBString(const std::string &rgbString);
@@ -597,40 +609,20 @@ void handleProducts()
       return;
     }
 
-    String color = tempJson["cor"].as<String>();
-
     if (tempJson.containsKey("produtos") && tempJson["produtos"].is<JsonArray>())
     {
 
-      activeSegments = productsColors;
-      activeSegmentsQuantity = productsColorsSize;
+      JsonArray products = tempJson["produtos"].as<JsonArray>();
 
-      Serial.println("PRODUTOS ATUAIS");
-      printArray(activeSegments, activeSegmentsQuantity);
-
-      JsonArray produtosArray = tempJson["produtos"].as<JsonArray>();
-
-      productsColors = new CRGB[produtosArray.size()];
-      productsColorsSize = produtosArray.size();
-
-      JsonArray storedProducts = getProducts();
-
-      for (size_t i = 0; i < produtosArray.size(); i++)
-      {
-        for (size_t j = 0; j < storedProducts.size(); j++)
-        {
-          if (produtosArray[i].as<int>() == storedProducts[j]["id"].as<int>())
-          {
-            productsColors[i] = parseColorString(storedProducts[j]["value"].as<String>());
-          }
-        }
-      }
-
-      Serial.println("PRODUTOS NOVOS");
-      printArray(productsColors, productsColorsSize);
+      processProducts(products);
     }
 
-    midiaColor = parseColorString(color);
+    if (tempJson.containsKey("cor") && tempJson["cor"].is<String>())
+    {
+      String color = tempJson["cor"].as<String>();
+
+      midiaColor = parseColorString(color);
+    }
 
     currentState = POST_MIDIA_REQUEST_STATE;
 
@@ -643,6 +635,45 @@ void handleProducts()
   server.send(200, "application/json", response);
 }
 
+void processProducts(const JsonArray &products)
+{
+  activeSegments = productsColors;
+  activeSegmentsQuantity = productsColorsSize;
+
+  allocateProductsColors(products.size());
+
+  matchProductsColors(products);
+}
+
+void allocateProductsColors(size_t size)
+{
+  delete[] productsColors;
+
+  productsColors = new CRGB[size];
+  productsColorsSize = size;
+}
+
+void matchProductsColors(const JsonArray &products)
+{
+  JsonArray storedProducts = getProducts();
+
+  for (size_t i = 0; i < products.size(); i++)
+  {
+    for (size_t j = 0; j < storedProducts.size(); j++)
+    {
+      const int productId = products[i].as<int>();
+      const int storedProductId = storedProducts[j]["id"].as<int>();
+
+      const String storedProductColor = storedProducts[j]["value"].as<String>();
+
+      if (productId == storedProductId)
+      {
+        productsColors[i] = parseColorString(storedProductColor);
+      }
+    }
+  }
+}
+
 bool shouldDeactivateConfigMode()
 {
   return configModeActivate == true && lastInteractionTimestamp + interactDelay < millis();
@@ -651,11 +682,20 @@ bool shouldDeactivateConfigMode()
 bool handleActiveClient(const String &displayId, String &response)
 {
 
-  if (!hasActiveClient() || isActiveClientTimeOver())
+  if (!hasActiveClient())
   {
-    Serial.println("No active client or time over");
+    Serial.println("No active client");
     activeClientId = displayId;
     lastActiveClientInteractionTimestamp = millis();
+  }
+  else if (isActiveClientTimeOver() && !isActiveClient(displayId))
+  {
+    Serial.println("Time over and different client");
+    activeClientId = displayId;
+    lastActiveClientInteractionTimestamp = millis();
+
+    productsColors = nullptr;
+    productsColorsSize = 0;
   }
   else if (isActiveClient(displayId))
   {
@@ -668,6 +708,7 @@ bool handleActiveClient(const String &displayId, String &response)
     response = R"({"message":"Outro cliente está usando os efeitos de iluminação."})";
     return false;
   }
+
   return true;
 }
 
@@ -684,6 +725,49 @@ bool isActiveClient(const String &clientId)
 bool isActiveClientTimeOver()
 {
   return lastActiveClientInteractionTimestamp + clientInteractionDelay < millis();
+}
+
+bool isSegmentActive(CRGB &segment)
+{
+  if (activeSegments == nullptr || activeSegmentsQuantity == 0)
+  {
+    return false;
+  }
+
+  for (int i = 0; i < activeSegmentsQuantity; i++)
+  {
+    const CRGB &currActiveSegment = activeSegments[i];
+
+    if (segment.r == currActiveSegment.r && segment.g == currActiveSegment.g && segment.b == currActiveSegment.b)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool areSegmentsArraysDifferent()
+{
+  Serial.println("Checking if segments are different");
+  Serial.println("Different Size: " + String(activeSegmentsQuantity != productsColorsSize));
+  Serial.println("No Active Segments: " + String(activeSegments == nullptr));
+  Serial.println("No productsColors: " + String(productsColors == nullptr));
+
+  if (activeSegmentsQuantity != productsColorsSize || activeSegments == nullptr || productsColors == nullptr)
+  {
+    return true;
+  }
+
+  for (int i = 0; i < activeSegmentsQuantity; i++)
+  {
+    if (activeSegments[i].r != productsColors[i].r || activeSegments[i].g != productsColors[i].g || activeSegments[i].b != productsColors[i].b)
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void handleLightUpAllColors()
@@ -729,6 +813,9 @@ void handleLightUpAllColors()
       server.send(200, "application/json", response);
       return;
     }
+
+    productsColors = nullptr;
+    productsColorsSize = 0;
 
     clearStrip("exit_config_mode");
     CRGB defaultColor = getDefaultColor();
@@ -982,44 +1069,6 @@ bool compareColorMidiaProducts(CRGB led, CRGB *categoriesColor, size_t size)
   {
 
     if (led.r == categoriesColor[x].r && led.g == categoriesColor[x].g && led.b == categoriesColor[x].b)
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool isSegmentActive(CRGB &segment)
-{
-  if (activeSegments == nullptr || activeSegmentsQuantity == 0)
-  {
-    return false;
-  }
-
-  for (int i = 0; i < activeSegmentsQuantity; i++)
-  {
-    const CRGB &currActiveSegment = activeSegments[i];
-
-    if (segment.r == currActiveSegment.r && segment.g == currActiveSegment.g && segment.b == currActiveSegment.b)
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool areSegmentsArraysDifferent()
-{
-  if (activeSegmentsQuantity != productsColorsSize)
-  {
-    return true;
-  }
-
-  for (int i = 0; i < activeSegmentsQuantity; i++)
-  {
-    if (activeSegments[i].r != productsColors[i].r || activeSegments[i].g != productsColors[i].g || activeSegments[i].b != productsColors[i].b)
     {
       return true;
     }
@@ -1463,109 +1512,83 @@ void clearAllStrips()
   fill_solid(leds[7], NUM_LEDS, CRGB::Black);
 }
 
+/**
+ * The function `clearStrip` clears LED strips based on the specified mode, with additional
+ * actions such as fading and setting properties.
+ *
+ * @param mode The `mode` parameter in the `clearStrip` function is a string that determines the
+ * behavior of the function based on different cases. The function checks if a fade effect is needed
+ * based on the `mode`, performs certain actions accordingly, and then switches between different cases
+ * to execute specific tasks based on the
+ */
 void clearStrip(std::string mode)
 {
+  Serial.println("Clear Strip");
 
-  // uint8_t currentBrightness = getConfigBrightness();
-  // CRGB defaultColor = getDefaultColor();
-  // int step = getFadeStep(currentBrightness);
-
-  // for (int i = currentBrightness; i >= 0; i -= step)
-  // {
-
-  //   FastLED.setBrightness(i);
-  //   FastLED.show();
-  // }
-
-  // FastLED.setBrightness(0);
-  // FastLED.show();
+  if (needsFade(mode))
+  {
+    brightnessFadeOut();
+    clearAllStrips();
+  }
 
   if (mode == "exit_config_mode")
   {
-    uint8_t currentBrightness = getConfigBrightness();
     CRGB defaultColor = getDefaultColor();
-    int step = getFadeStep(currentBrightness);
 
-    for (int i = currentBrightness; i >= 0; i -= step)
-    {
-
-      FastLED.setBrightness(i);
-      FastLED.show();
-    }
-
-    FastLED.setBrightness(0);
-    FastLED.show();
-
-    clearAllStrips();
     fadeInAllSegments(defaultColor);
-    USE_SERIAL.println("exit_config_mode");
-
-    for (int i = 0; i <= currentBrightness; i += step)
-    {
-      FastLED.setBrightness(i);
-      FastLED.show();
-    }
+    Serial.println("exit_config_mode");
   }
-
-  if (mode == "products_fade")
+  else if (mode == "products_fade")
   {
-    if (areSegmentsArraysDifferent())
-    {
-      uint8_t currentBrightness = getConfigBrightness();
-      CRGB defaultColor = getDefaultColor();
-      int step = getFadeStep(currentBrightness);
-
-      for (int i = currentBrightness; i >= 0; i -= step)
-      {
-
-        FastLED.setBrightness(i);
-        FastLED.show();
-      }
-
-      FastLED.setBrightness(0);
-      FastLED.show();
-
-      applyMidiaColor();
-      USE_SERIAL.println("products_fade");
-
-      for (int i = 0; i <= currentBrightness; i += step)
-      {
-        FastLED.setBrightness(i);
-        FastLED.show();
-      }
-    }
-    else
-    {
-      applyMidiaColor();
-      USE_SERIAL.println("products_fade");
-    }
+    applyMidiaColor();
+    Serial.println("products_fade");
   }
-
-  if (mode == "config_mode")
+  else if (mode == "config_mode")
   {
-    uint8_t currentBrightness = getConfigBrightness();
-    CRGB defaultColor = getDefaultColor();
-    int step = getFadeStep(currentBrightness);
-
-    for (int i = currentBrightness; i >= 0; i -= step)
-    {
-
-      FastLED.setBrightness(i);
-      FastLED.show();
-    }
-
-    FastLED.setBrightness(0);
-    FastLED.show();
-
-    clearAllStrips();
-    USE_SERIAL.println("config_mode");
     setLEDStripProperties();
+    Serial.println("config_mode");
+  }
+  else
+  {
+    Serial.println("Invalid mode");
+  }
 
-    for (int i = 0; i <= currentBrightness; i += step)
-    {
-      FastLED.setBrightness(i);
-      FastLED.show();
-    }
+  if (needsFade(mode))
+  {
+    brightnessFadeIn();
+  }
+}
+
+boolean needsFade(const std::string mode)
+{
+  return mode != "products_fade" || areSegmentsArraysDifferent();
+}
+
+void brightnessFadeOut()
+{
+  uint8_t currentBrightness = getConfigBrightness();
+  int step = getFadeStep(currentBrightness);
+
+  for (int i = currentBrightness; i >= 0; i -= step)
+  {
+
+    FastLED.setBrightness(i);
+    FastLED.show();
+  }
+
+  FastLED.setBrightness(0);
+  FastLED.show();
+}
+
+void brightnessFadeIn()
+{
+  uint8_t currentBrightness = getConfigBrightness();
+  int step = getFadeStep(currentBrightness);
+
+  for (int i = 0; i <= currentBrightness; i += step)
+  {
+    FastLED.setBrightness(i);
+    FastLED.show();
   }
 }
 
