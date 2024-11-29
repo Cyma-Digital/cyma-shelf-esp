@@ -95,8 +95,10 @@ bool isActiveClientTimeOver();
 CRGB *activeSegments = nullptr;
 int activeSegmentsQuantity = 0;
 
-bool isSegmentActive(CRGB &segment);
 bool areSegmentsArraysDifferent();
+
+void allocateActiveSegments(size_t size);
+void copyLastProductsToActiveSegments();
 
 void changeColorCategory();
 CRGB hsvToRgb(const CHSV &hsv, CRGB &rgb);
@@ -226,11 +228,6 @@ void setup()
 
   FastLED.setBrightness(255);
 
-  // if (!FFat.begin(true))
-  // {
-  //   Serial.println("Couldn't mount File System");
-  // }
-
   WiFi.config(device_IP, gateway, subnet);
 
   if (CONNECTION_MODE == "WiFi")
@@ -283,8 +280,7 @@ void setup()
   checkAndWriteToFile();
 
   currentState = BACK_DEFAULT_STATE;
-  USE_SERIAL.print("Current State: ");
-  USE_SERIAL.println(currentState);
+
   setLEDStripProperties();
 }
 
@@ -332,8 +328,6 @@ void waitColor()
   if (lastColor + delayCategoryColor < millis())
   {
     currentState = BACK_DEFAULT_STATE;
-    USE_SERIAL.print("Current State: ");
-    USE_SERIAL.println(currentState);
   }
 }
 
@@ -353,8 +347,6 @@ void changeColorCategory()
 {
   lastColor = millis();
   currentState = SET_COLOR_STATE;
-  USE_SERIAL.print("Current State: ");
-  USE_SERIAL.println(currentState);
   applyColorCategory();
 }
 
@@ -437,8 +429,6 @@ void applyColorCategory()
     }
     FastLED.show();
   }
-  USE_SERIAL.print("Current State: ");
-  USE_SERIAL.println(currentState);
   return;
 }
 
@@ -451,11 +441,7 @@ void applyMidiaColor()
     {
       for (size_t k = 0; k < AMOUNT_SHELFS; k++)
       {
-        if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize) && isSegmentActive(refs[k][j]))
-        {
-          continue;
-        }
-        else if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
+        if (compareColorMidiaProducts(refs[k][j], productsColors, productsColorsSize))
         {
           fadeInSegmentBasedOnCurrentMode(leds[k][j], midiaColor);
         }
@@ -472,23 +458,19 @@ void handleColor()
 {
 
   Serial.println("\nHandler Category");
-  USE_SERIAL.print("Current State: ");
-  USE_SERIAL.println(currentState);
   String response;
 
   if (shouldDeactivateConfigMode())
   {
-    Serial.println("Config mode is false");
+    Serial.println("Deactivating config mode");
     configModeActivate = false;
-    response = "{\"message\":\"config mode false\"}";
+    response = "{\"message\":\"Deactivating config mode\"}";
     server.send(200, "application/json", response);
     return;
   }
 
   if (configModeActivate == false)
   {
-
-    Serial.println("\nHandler Category");
 
     if (server.hasArg("plain") == false)
     {
@@ -505,7 +487,6 @@ void handleColor()
     }
 
     serializeJson(json, Serial);
-    USE_SERIAL.println();
 
     String colorFromTerminal = json["color"].as<String>();
     categoryColor = parseColorString(colorFromTerminal);
@@ -557,8 +538,10 @@ void handleProducts()
 
   if (shouldDeactivateConfigMode())
   {
-    Serial.println("Config mode setted to false");
+    Serial.println("Deactivating config mode");
     configModeActivate = false;
+
+    response = "{\"message\":\"Deactivating config mode\"}";
     server.send(200, "application/json", response);
     return;
   }
@@ -623,12 +606,27 @@ void handleProducts()
 
 void processProducts(const JsonArray &products)
 {
-  activeSegments = productsColors;
-  activeSegmentsQuantity = productsColorsSize;
+  allocateActiveSegments(productsColorsSize);
+  copyLastProductsToActiveSegments();
 
   allocateProductsColors(products.size());
-
   matchProductsColors(products);
+}
+
+void allocateActiveSegments(size_t size)
+{
+  delete[] activeSegments;
+
+  activeSegments = new CRGB[size];
+  activeSegmentsQuantity = size;
+}
+
+void copyLastProductsToActiveSegments()
+{
+  for (size_t i = 0; i < productsColorsSize; i++)
+  {
+    activeSegments[i] = productsColors[i];
+  }
 }
 
 void allocateProductsColors(size_t size)
@@ -713,28 +711,9 @@ bool isActiveClientTimeOver()
   return lastActiveClientInteractionTimestamp + clientInteractionDelay < millis();
 }
 
-bool isSegmentActive(CRGB &segment)
-{
-  if (activeSegments == nullptr || activeSegmentsQuantity == 0)
-  {
-    return false;
-  }
-
-  for (int i = 0; i < activeSegmentsQuantity; i++)
-  {
-    const CRGB &currActiveSegment = activeSegments[i];
-
-    if (segment.r == currActiveSegment.r && segment.g == currActiveSegment.g && segment.b == currActiveSegment.b)
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 bool areSegmentsArraysDifferent()
 {
+
   if (activeSegmentsQuantity != productsColorsSize || activeSegments == nullptr || productsColors == nullptr)
   {
     return true;
@@ -757,8 +736,10 @@ void handleLightUpAllColors()
   String response;
   if (shouldDeactivateConfigMode())
   {
-    Serial.println("Config mode is false");
+    Serial.println("Deactivating config mode");
     configModeActivate = false;
+
+    response = "{\"message\":\"Deactivating config mode\"}";
     server.send(200, "application/json", response);
     return;
   }
@@ -926,8 +907,6 @@ void handleTests()
     FastLED.setBrightness(i);
     FastLED.show();
   }
-
-  Serial.println();
 
   response = "{\"message\":\"success\"}";
   server.send(200, "application/json", response);
@@ -1159,6 +1138,7 @@ void checkAndWriteToFile()
 
   SPIFFS.begin();
   File file = SPIFFS.open("/data.txt", "r");
+
   if (!file)
   {
     Serial.println("There was an error opening the file for writing");
@@ -1310,7 +1290,7 @@ void dumpJsonArray(const JsonArray &jsonArray)
   {
     JsonObject jsonObject = jsonArray[i].as<JsonObject>();
     serializeJson(jsonObject, Serial);
-    USE_SERIAL.println();
+    Serial.println();
   }
 }
 
@@ -1480,8 +1460,6 @@ void clearAllStrips()
  */
 void clearStrip(std::string mode)
 {
-  Serial.println("Clear Strip");
-
   if (needsFade(mode))
   {
     brightnessFadeOut();
