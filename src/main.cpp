@@ -749,11 +749,6 @@ bool isSegmentActive(CRGB &segment)
 
 bool areSegmentsArraysDifferent()
 {
-  Serial.println("Checking if segments are different");
-  Serial.println("Different Size: " + String(activeSegmentsQuantity != productsColorsSize));
-  Serial.println("No Active Segments: " + String(activeSegments == nullptr));
-  Serial.println("No productsColors: " + String(productsColors == nullptr));
-
   if (activeSegmentsQuantity != productsColorsSize || activeSegments == nullptr || productsColors == nullptr)
   {
     return true;
