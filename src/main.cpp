@@ -37,6 +37,8 @@ void fadeOut(const CRGB &shelf, int brightness);
 void fadeInSegment(CRGB &shelf, CRGB color);
 void fadeInSegmentBasedOnCurrentMode(CRGB &shelf, CRGB color);
 
+
+
 void brightnessFadeOut();
 void brightnessFadeIn();
 
@@ -50,6 +52,7 @@ void handleNotFound();
 void handleConfigMode();
 void handleInteract();
 void handleTests();
+void handleColorParam();
 
 // FILE MANAGER
 String read(String filename);
@@ -69,7 +72,7 @@ const int POST_MIDIA_REQUEST_STATE = 3;
 void applyColorCategory();
 void applyMidiaColor();
 void waitColor();
-
+void checkInactivity();
 // CONFIG MANAGER
 bool configModeActivate = false;
 unsigned long interactDelay = 60000;
@@ -117,6 +120,7 @@ void matchProductsColors(const JsonArray &products);
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
 CRGB parseColorString(String colorString);
+std::vector<int> parseHSVString(const std::string &hsvString);
 std::vector<int> parseRGBString(const std::string &rgbString);
 void dumpJsonArray(const JsonArray &jsonArray);
 int getFadeStep(uint8_t brightness);
@@ -130,8 +134,10 @@ int currentState;
 
 // esp@192.168.20.50
 IPAddress device_IP(192, 168, 20, 50);
+// IPAddress device_IP(192, 168, 15, 50);
 
 // IPAddress gateway(192, 168, 0, 1);
+// IPAddress gateway(192, 168, 15, 1);
 IPAddress gateway(192, 168, 20, 1);
 IPAddress subnet(255, 225, 255, 0);
 byte mac[] = {
@@ -155,6 +161,8 @@ int delayCategoryColor;
 int lastColor = 0;
 CRGB *productsColors = nullptr;
 size_t productsColorsSize = 0;
+
+const unsigned long INACTIVITY_THRESHOLD = 120000;
 
 #define LED_PIN_1 2
 // #define LED_PIN_1 13
@@ -208,7 +216,7 @@ void setup()
   pinMode(5, OUTPUT);
 
   FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
-  // FastLED.addLeds<WS2812, LED_PIN_1, GRB>(leds[0], 0, NUM_LEDS); // define
+  FastLED.addLeds<WS2812, LED_PIN_1, RGB>(leds[0], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_2, RGB>(leds[1], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_3, RGB>(leds[2], 0, NUM_LEDS); // define
   FastLED.addLeds<WS2812, LED_PIN_4, RGB>(leds[3], 0, NUM_LEDS); // define
@@ -242,7 +250,12 @@ void setup()
   else
   {
     Serial.println("\n[+] Connecting on WiFi network...");
-    WiFi.begin("CraftTouch-Control", "xUy!wajcw9");
+    WiFi.begin("Craft-Zero", "RtYcFQN13z");
+    // WiFi.begin("CraftTouch-Control", "xUy!wajcw9");
+    // WiFi.begin("CraftTouch-Control Itaim", "xUy!wajcw9");
+    // WiFi.begin("CraftTouch-Control Mooca", "xUy!wajcw9");
+    // WiFi.begin("CraftTouch-Control Brooklin", "xUy!wajcw9");
+    // WiFi.begin("Gondola 1", "cyma102030");
     // WiFi.begin("ABDOU-NET", "router2015");
 
     while (WiFi.status() != WL_CONNECTED)
@@ -270,6 +283,7 @@ void setup()
   server.on("/config-mode", handleConfigMode);
   server.on("/interact", handleInteract);
   server.on("/function-test", handleTests);
+  server.on("/color-test", handleColorParam);
   server.onNotFound(handleNotFound);
 
   Serial.println("[+] Creating websocket server... ");
@@ -301,6 +315,7 @@ void stateMachine()
   switch (currentState)
   {
   case DEFAULT_STATE:
+    checkInactivity();
     break;
   case POST_REQUEST_STATE:
     applyColorCategory();
@@ -328,6 +343,18 @@ void waitColor()
   if (lastColor + delayCategoryColor < millis())
   {
     currentState = BACK_DEFAULT_STATE;
+  }
+}
+
+void checkInactivity() {
+  unsigned long currentMillis = millis();
+
+  if ((currentState == DEFAULT_STATE) && (currentMillis - lastColor > INACTIVITY_THRESHOLD)) {
+    Serial.println("dont receive request at last two minutes");
+    clearStrip("exit_config_mode");
+    
+    // Atualiza lastColor para evitar várias execuções desnecessárias de executeInactivityFunction
+    lastColor = currentMillis;
   }
 }
 
@@ -549,7 +576,7 @@ void handleProducts()
   if (!configModeActivate)
   {
     String request_body;
-    DynamicJsonDocument tempJson(4048);
+    DynamicJsonDocument tempJson(5048);
 
     if (server.hasArg("plain") == false)
     {
@@ -747,7 +774,7 @@ void handleLightUpAllColors()
   if (!configModeActivate)
   {
     String request_body;
-    DynamicJsonDocument tempJson(4048);
+    DynamicJsonDocument tempJson(5048);
 
     if (server.hasArg("plain") == false)
     {
@@ -828,7 +855,7 @@ void handleConfig()
   {
 
     String request_body;
-    DynamicJsonDocument tempJson(4048);
+    DynamicJsonDocument tempJson(5048);
 
     if (server.hasArg("plain") == false)
     {
@@ -860,6 +887,72 @@ void handleConfig()
     server.send(405, "application/json", response);
   }
 }
+
+void handleColorParam()
+{
+  Serial.println("Handle Tests");
+
+  String response;
+  String request_body;
+
+  // JsonArray products;
+
+  // products = getProducts();
+
+  // for(size_t i = 0; i < products.size(); i++) {
+  //   Serial.println(products[i]["name"].as<String>());
+  //   Serial.println(products[i]["id"].as<int>());
+  // }
+
+  DynamicJsonDocument tempJson(2048);
+
+  if (server.hasArg("plain") == false)
+  {
+    response = "{\"message\":\"empty body\"}";
+    server.send(200, "application/json", response);
+    return;
+  }
+
+  request_body = server.arg("plain");
+
+  DeserializationError error = deserializeJson(tempJson, request_body);
+  if (error)
+  {
+    Serial.println("Erro");
+    return;
+  }
+
+  serializeJson(tempJson, Serial);
+
+  std::string color_rbg = tempJson["rgb"].as<std::string>();
+  std::string color_hsv = tempJson["hsv"].as<std::string>();
+  std::string type = tempJson["type"].as<std::string>();
+
+  std::string type_rbg = "rgb";
+
+  std::vector<int> colorArray = parseRGBString(color_rbg);
+  std::vector<int> hsvValues = parseHSVString(color_hsv);
+
+  if (type == type_rbg)
+  {
+    USE_SERIAL.println("rbg type");
+    CRGB currentColor(colorArray[0], colorArray[1], colorArray[2]);
+    fill_solid(leds[0], NUM_LEDS, currentColor);
+  }
+  else
+  {
+    USE_SERIAL.println("hsv type");
+    CHSV currentColor(hsvValues[0], hsvValues[1], hsvValues[2]);
+    fill_solid(leds[0], NUM_LEDS, currentColor);
+  }
+
+  Serial.println();
+
+  response = "{\"message\":\"success\"}";
+  server.send(200, "application/json", response);
+  return;
+}
+
 
 // This funcion handler must be used to test some function without wait to all the code flow
 void handleTests()
@@ -1038,7 +1131,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 
     size_t len;
-    DynamicJsonDocument data(4048);
+    DynamicJsonDocument data(5048);
 
     String dataFile = read("/data.txt");
 
@@ -1062,7 +1155,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     USE_SERIAL.printf("[%u] From Vue: %s\n", num, payload);
 
     const uint8_t size = JSON_OBJECT_SIZE(5);
-    StaticJsonDocument<3048> json;
+    // StaticJsonDocument<3048> json;
+    DynamicJsonDocument json(5048);
     DeserializationError err = deserializeJson(json, payload);
 
     if (err)
@@ -1108,7 +1202,7 @@ int getFadeStep(uint8_t brightness)
 
 uint8_t getConfigBrightness()
 {
-  DynamicJsonDocument json(4048);
+  DynamicJsonDocument json(5048);
 
   String dataFile = read("/data.txt");
 
@@ -1266,7 +1360,7 @@ DynamicJsonDocument readFileAndConvertoArduinoJson(String filename)
 {
   String dataFile = read(filename);
 
-  DynamicJsonDocument json(4048);
+  DynamicJsonDocument json(5048);
   DeserializationError err = deserializeJson(json, dataFile);
   if (err)
   {
@@ -1304,7 +1398,7 @@ void dumpJsonArray(const JsonArray &jsonArray)
 void setLEDStripProperties()
 {
 
-  DynamicJsonDocument json(4048);
+  DynamicJsonDocument json(5048);
 
   String dataFile = read("/data.txt");
 
@@ -1565,4 +1659,38 @@ std::vector<int> parseRGBString(const std::string &rgbString)
   }
 
   return rgbValues;
+}
+
+std::vector<int> parseHSVString(const std::string &hsvString)
+{
+  std::vector<int> hsvValues;
+
+  if (hsvString.substr(0, 4) == "hsv(" && hsvString.back() == ')')
+  {
+    std::string valuesString = hsvString.substr(4, hsvString.size() - 5);
+
+    std::stringstream ss(valuesString);
+    std::string token;
+
+    while (std::getline(ss, token, ','))
+    {
+      try
+      {
+        // Converte o valor em inteiro e adiciona ao vetor
+        int value = std::stoi(token);
+        hsvValues.push_back(value);
+      }
+      catch (const std::invalid_argument &e)
+      {
+        // Tratar valores inválidos
+        std::cerr << "Invalid HSV value: " << token << std::endl;
+      }
+    }
+  }
+  else
+  {
+    std::cerr << "Invalid HSV string format: " << hsvString << std::endl;
+  }
+
+  return hsvValues;
 }

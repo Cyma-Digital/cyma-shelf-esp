@@ -1,0 +1,194 @@
+{
+	"config": {
+		"shelfs": 7,
+		"pixels": 26,
+		"title": "Craft Cerona Cero",
+		"colorMode": "warm",
+		"defaultWarmColor": "#D25A0F",
+		"defaultColdColor": "#FFFFFF",
+		"pixelCentimeters": 5,
+		"brightness": 255,
+		"id": null,
+		"delay": 5000,
+		"interactDelay": 60000,
+		"clientInteractionDelay": 5000,
+		"products": [
+			{
+				"name": "Corona Cero",
+				"id": 33,
+				"value": "#ffff00"
+			},
+			{
+				"name": "Budweiser Zero",
+				"id": 35,
+				"value": "#ff0000"
+			},
+			{
+				"name": "Brahma Zero",
+				"id": 36,
+				"value": "#d25a0f"
+			},
+			{
+				"name": "Outras Marcas",
+				"id": 37,
+				"value": "#9932cc"
+			}
+		]
+	},
+	"shelfs": [
+		{
+			"shelfIndex": 0,
+			"segmentsNumber": 4,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 8,
+					"realSize": 8,
+					"product": 36,
+					"color": "#d25a0f"
+				},
+				{
+					"segmentIndex": 1,
+					"size": 20,
+					"realSize": 12,
+					"product": 33,
+					"color": "#ffff00"
+				},
+				{
+					"segmentIndex": 2,
+					"size": 22,
+					"realSize": 2,
+					"product": 35,
+					"color": "#ff0000"
+				},
+				{
+					"segmentIndex": 3,
+					"size": 26,
+					"realSize": 4,
+					"product": 33,
+					"color": "#ffff00"
+				}
+			]
+		},
+		{
+			"shelfIndex": 1,
+			"segmentsNumber": 2,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 9,
+					"realSize": 9,
+					"product": 36,
+					"color": "#d25a0f"
+				},
+				{
+					"segmentIndex": 1,
+					"size": 40,
+					"realSize": 31,
+					"product": 33,
+					"color": "#ffff00"
+				}
+			]
+		},
+		{
+			"shelfIndex": 2,
+			"segmentsNumber": 1,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 26,
+					"realSize": 26,
+					"product": 35,
+					"color": "#ff0000"
+				}
+			]
+		},
+		{
+			"shelfIndex": 3,
+			"segmentsNumber": 2,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 13,
+					"realSize": 13,
+					"product": 36,
+					"color": "#d25a0f"
+				},
+				{
+					"segmentIndex": 1,
+					"size": 26,
+					"realSize": 13,
+					"product": 35,
+					"color": "#ff0000"
+				}
+			]
+		},
+		{
+			"shelfIndex": 4,
+			"segmentsNumber": 2,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 13,
+					"realSize": 13,
+					"product": 36,
+					"color": "#d25a0f"
+				},
+				{
+					"segmentIndex": 1,
+					"size": 26,
+					"realSize": 13,
+					"product": 33,
+					"color": "#ffff00"
+				}
+			]
+		},
+		{
+			"shelfIndex": 5,
+			"segmentsNumber": 2,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 13,
+					"realSize": 13,
+					"product": 33,
+					"color": "#ffff00"
+				},
+				{
+					"segmentIndex": 1,
+					"size": 26,
+					"realSize": 13,
+					"product": 35,
+					"color": "#ff0000"
+				}
+			]
+		},
+		{
+			"shelfIndex": 6,
+			"segmentsNumber": 3,
+			"segments": [
+				{
+					"segmentIndex": 0,
+					"size": 13,
+					"realSize": 13,
+					"product": 36,
+					"color": "#d25a0f"
+				},
+				{
+					"segmentIndex": 1,
+					"size": 17,
+					"realSize": 4,
+					"product": 33,
+					"color": "#ffff00"
+				},
+				{
+					"segmentIndex": 2,
+					"size": 26,
+					"realSize": 9,
+					"product": 35,
+					"color": "#ff0000"
+				}
+			]
+		}
+	]
+}
