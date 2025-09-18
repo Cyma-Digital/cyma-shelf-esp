@@ -136,9 +136,9 @@ int currentState;
 IPAddress device_IP(192, 168, 20, 50);
 // IPAddress device_IP(192, 168, 15, 50);
 
-// IPAddress gateway(192, 168, 0, 1);
+IPAddress gateway(192, 168, 0, 1);
 // IPAddress gateway(192, 168, 15, 1);
-IPAddress gateway(192, 168, 20, 1);
+// IPAddress gateway(192, 168, 20, 1);
 IPAddress subnet(255, 225, 255, 0);
 byte mac[] = {
     0x75, 0xD9, 0xAA, 0x39, 0x90, 0x37};
